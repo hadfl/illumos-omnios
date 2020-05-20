@@ -203,12 +203,6 @@ ipf_hook_protocol_notify_ngz(hook_notify_cmd_t command, void *arg,
 	return (ipf_hook_protocol_notify(command, arg, name, dummy, he_name));
 }
 
-/* viona hook names */
-char *hook_viona_in =		"ipfilter_hookviona_in";
-char *hook_viona_in_gz =	"ipfilter_hookviona_in_gz";
-char *hook_viona_out =		"ipfilter_hookviona_out";
-char *hook_viona_out_gz =	"ipfilter_hookviona_out_gz";
-
 /* ------------------------------------------------------------------------ */
 /* Function:    ipldetach                                                   */
 /* Returns:     int - 0 == success, else error.                             */
@@ -2405,6 +2399,42 @@ int ipf_hook_ether(hook_event_token_t token, hook_data_t info, void *arg,
 
 	return (v6 ? ipf_hook6(info, out, 0, arg) :
 	    ipf_hook(info, out, 0, arg));
+}
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_hookvndl3_in					    */
+/* Returns:     int - 0 == packet ok, else problem, free packet if not done */
+/* Parameters:  event(I)     - pointer to event                             */
+/*              info(I)      - pointer to hook information for firewalling  */
+/*                                                                          */
+/* The vnd hooks are private hooks to ON. They represents a layer 2         */
+/* datapath generally used to implement virtual machines. The driver sends  */
+/* along L3 packets of either type IP or IPv6. The ethertype to distinguish */
+/* them is in the upper 16 bits while the remaining bits are the            */
+/* traditional packet hook flags.                                           */
+/*                                                                          */
+/* They end up calling the appropriate traditional ip hooks.                */
+/* ------------------------------------------------------------------------ */
+/*ARGSUSED*/
+int ipf_hookvndl3v4_in(hook_event_token_t token, hook_data_t info, void *arg)
+{
+	return ipf_hook4_in(token, info, arg);
+}
+
+int ipf_hookvndl3v6_in(hook_event_token_t token, hook_data_t info, void *arg)
+{
+	return ipf_hook6_in(token, info, arg);
+}
+
+/*ARGSUSED*/
+int ipf_hookvndl3v4_out(hook_event_token_t token, hook_data_t info, void *arg)
+{
+	return ipf_hook4_out(token, info, arg);
+}
+
+int ipf_hookvndl3v6_out(hook_event_token_t token, hook_data_t info, void *arg)
+{
+	return ipf_hook6_out(token, info, arg);
 }
 
 /* ------------------------------------------------------------------------ */
