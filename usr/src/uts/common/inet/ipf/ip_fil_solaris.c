@@ -203,6 +203,12 @@ ipf_hook_protocol_notify_ngz(hook_notify_cmd_t command, void *arg,
 	return (ipf_hook_protocol_notify(command, arg, name, dummy, he_name));
 }
 
+/* viona hook names */
+char *hook_viona_in =		"ipfilter_hookviona_in";
+char *hook_viona_in_gz =	"ipfilter_hookviona_in_gz";
+char *hook_viona_out =		"ipfilter_hookviona_out";
+char *hook_viona_out_gz =	"ipfilter_hookviona_out_gz";
+
 /* ------------------------------------------------------------------------ */
 /* Function:    ipldetach                                                   */
 /* Returns:     int - 0 == success, else error.                             */
@@ -633,19 +639,19 @@ hookup_failed:
  * nethook framework doesn't use the return address, it can be observed via
  * dtrace if needed.
  */
-/* ARGSUSED */
 static int
 ipf_hook_protocol_notify(hook_notify_cmd_t command, void *arg,
     const char *name, const char *dummy __unused, const char *he_name)
 {
 	ipf_stack_t *ifs = arg;
 	hook_t **hookpp;
-	char *hint_name;
+	char *hook_name, *hint_name;
 	hook_func_t hookfn;
 	boolean_t *hookedp;
 	hook_hint_t hint;
 	boolean_t out;
 	int ret = 0;
+
 	const boolean_t gz = ifs->ifs_gz_controlled;
 
 	/* We currently only care about viona hooks notifications */
@@ -730,7 +736,6 @@ ipf_hook_protocol_notify(hook_notify_cmd_t command, void *arg,
  * We elect to return 0 on success (or not applicable) or a non-zero value
  * on error.
  */
-/* ARGSUSED */
 static int
 ipf_hook_instance_notify(hook_notify_cmd_t command, void *arg,
     const char *netid, const char *dummy __unused, const char *instance)
@@ -2334,7 +2339,6 @@ static uint8_t ipf_eth_ipv6_mcast[2] = { 0x33, 0x33 };
 /* traditional ip hooks for filtering.  Non IPv4 or non IPv6 packets are    */
 /* not subject to examination.                                              */
 /* ------------------------------------------------------------------------ */
-/* ARGSUSED */
 int ipf_hook_ether(hook_event_token_t token, hook_data_t info, void *arg,
     boolean_t out)
 {
