@@ -81,19 +81,16 @@ using std::strtoul;
 using std::system;
 using std::wcstombs;
 using std::wctomb;
-#endif
-
 /*
  * Allow global visibility for symbols defined in
  * C++ "std" namespace in <iso/stdlib_c11.h>.
  */
-#if __cplusplus >= 201103L
+#if !defined(_STRICT_SYMBOLS) || defined(_STDC_C11)
 using std::at_quick_exit;
 using std::quick_exit;
-#endif
-#if __cplusplus >= 201703L
 using std::aligned_alloc;
 #endif
+#endif /* __cplusplus >= 199711L */
 
 #ifdef	__cplusplus
 extern "C" {
