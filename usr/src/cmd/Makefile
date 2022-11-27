@@ -85,6 +85,7 @@ COMMON_SUBDIRS=	\
 	connstat	\
 	consadm		\
 	coreadm		\
+	cpio		\
 	cron		\
 	crypt		\
 	ctfconvert	\
@@ -435,7 +436,6 @@ COMMON_SUBDIRS=	\
 # backup - not 64bit clean
 # cpc - not ported (nor libcpc)
 # csh - not 64bit clean
-# cpio - not 64bit clean
 # csplit - not 64bit clean
 # eqn - not 64bit clean
 # ed - not 64bit clean
@@ -489,7 +489,6 @@ $(NOT_AARCH64_BLD)COMMON_SUBDIRS +=	\
 	backup		\
 	cpc		\
 	csh		\
-	cpio		\
 	csplit		\
 	eqn		\
 	ed		\

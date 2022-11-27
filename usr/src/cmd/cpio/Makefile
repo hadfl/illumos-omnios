@@ -22,6 +22,7 @@
 # Use is subject to license terms.
 #
 # Copyright (c) 2018, Joyent, Inc.
+# Copyright 2022 OmniOS Community Edition (OmniOSce) Association.
 
 PROG= cpio
 
@@ -29,13 +30,11 @@ OBJS= cpio.o cpiostat.o utils.o
 SRCS= $(OBJS:%.o=%.c)
 
 include ../Makefile.cmd
+$(AARCH64_BLD)include ../Makefile.cmd.64
 include ../Makefile.ctf
 
-CPPFLAGS += -D_FILE_OFFSET_BITS=64 -DSOLARIS_PRIVS
-CERRWARN += -_gcc=-Wno-parentheses
-
-# not linted
-SMATCH=off
+$(NOT_AARCH64_BLD)CPPFLAGS += -D_FILE_OFFSET_BITS=64
+CPPFLAGS += -DSOLARIS_PRIVS
 
 LDLIBS += -lsec -lcmdutils -lnvpair
 XGETFLAGS += -a -x cpio.xcl

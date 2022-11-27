@@ -28,6 +28,10 @@
 /*	All Rights Reserved					*/
 
 /*
+ * Copyright 2022 OmniOS Community Edition (OmniOSce) Association.
+ */
+
+/*
  * Portions of this source code were derived from Berkeley 4.3 BSD
  * under license from the Regents of the University of California.
  */
@@ -1615,7 +1619,7 @@ creat_hdr(void)
 				Gen.g_tname = Gen.g_nam_p;
 			}
 			(void) strcpy(Gen.g_tmagic, "ustar");
-			(void) strcpy(Gen.g_version, "00");
+			(void) memcpy(Gen.g_version, "00", 2);
 
 			dpasswd = getpwuid(SrcSt.st_uid);
 			if (dpasswd == NULL) {
@@ -3842,7 +3846,7 @@ verify_attr_support(char *filename, int attrflg, arc_action_t actflag,
 		return (ATTR_SKIP);
 	}
 
-return (ATTR_OK);
+	return (ATTR_OK);
 }
 #endif
 
@@ -4952,9 +4956,9 @@ gethdr(void)
 				default:
 					msg(EXT, "unrecognized attr type");
 					break;
-			}
-			/* next attributes */
-			tp += attrsize;
+				}
+				/* next attributes */
+				tp += attrsize;
 			} while (bytes > 0);
 			free(secp);
 		} else {
@@ -5426,7 +5430,6 @@ mkshort(short sval[], long v)
 {
 	union swpbuf *swp_p, swp_b;
 
-	/* LINTED alignment */
 	swp_p = (union swpbuf *)sval;
 	swp_b.s_word = 1;
 	if (swp_b.s_byte[0]) {
@@ -5907,7 +5910,7 @@ read_hdr(int hdr)
 			    &Gen.g_mode);
 			(void) sscanf(Thdr_p->tbuf.t_uid, "%8lo", &Gen.g_uid);
 			(void) sscanf(Thdr_p->tbuf.t_gid, "%8lo", &Gen.g_gid);
-			(void) sscanf(Thdr_p->tbuf.t_size, "%11llo",
+			(void) sscanf(Thdr_p->tbuf.t_size, "%12llo",
 			    (u_off_t *)&Gen.g_filesz);
 			(void) sscanf(Thdr_p->tbuf.t_mtime, "%12lo",
 			    (ulong_t *)&Gen.g_mtime);
@@ -5937,11 +5940,9 @@ read_hdr(int hdr)
 				break;
 			}
 
-			(void) sscanf(Thdr_p->tbuf.t_magic, "%8lo",
-			    /* LINTED alignment */
+			(void) sscanf(Thdr_p->tbuf.t_magic, "%6lo",
 			    (ulong_t *)&Gen.g_tmagic);
-			(void) sscanf(Thdr_p->tbuf.t_version, "%8lo",
-			    /* LINTED alignment */
+			(void) sscanf(Thdr_p->tbuf.t_version, "%2lo",
 			    (ulong_t *)&Gen.g_version);
 			(void) sscanf(Thdr_p->tbuf.t_uname, "%32s",
 			    (char *)&Gen.g_uname);
@@ -5963,14 +5964,14 @@ read_hdr(int hdr)
 		} else {
 			Thdr_p = (union tblock *)Buffr.b_out_p;
 			Gen.g_nam_p[0] = '\0';
-			(void) sscanf(Thdr_p->tbuf.t_mode, "%lo", &Gen.g_mode);
-			(void) sscanf(Thdr_p->tbuf.t_uid, "%lo", &Gen.g_uid);
-			(void) sscanf(Thdr_p->tbuf.t_gid, "%lo", &Gen.g_gid);
-			(void) sscanf(Thdr_p->tbuf.t_size, "%llo",
+			(void) sscanf(Thdr_p->tbuf.t_mode, "%8lo", &Gen.g_mode);
+			(void) sscanf(Thdr_p->tbuf.t_uid, "%8lo", &Gen.g_uid);
+			(void) sscanf(Thdr_p->tbuf.t_gid, "%8lo", &Gen.g_gid);
+			(void) sscanf(Thdr_p->tbuf.t_size, "%12llo",
 			    (u_off_t *)&Gen.g_filesz);
-			(void) sscanf(Thdr_p->tbuf.t_mtime, "%lo",
+			(void) sscanf(Thdr_p->tbuf.t_mtime, "%12lo",
 			    &Gen.g_mtime);
-			(void) sscanf(Thdr_p->tbuf.t_cksum, "%lo",
+			(void) sscanf(Thdr_p->tbuf.t_cksum, "%8lo",
 			    &Gen.g_cksum);
 			if (Thdr_p->tbuf.t_typeflag == '1')	/* hardlink */
 				Gen.g_nlink = 1;
@@ -5987,8 +5988,7 @@ read_hdr(int hdr)
 		if (Bar_vol_num == 0 && bar_read_cnt == 0) {
 			read_bar_vol_hdr();
 			bar_read_cnt++;
-		}
-		else {
+		} else {
 			read_bar_file_hdr();
 		}
 		rv = BAR;
@@ -6836,7 +6836,6 @@ swap(char *buf_p, int cnt)
 	cnt /= 4;
 	if (Args & (OCb | OCs | BSM)) {
 		tcnt = cnt;
-		/* LINTED alignment */
 		Swp_p = (union swpbuf *)buf_p;
 		while (tcnt-- > 0) {
 			tbyte = Swp_p->s_byte[0];
@@ -6856,7 +6855,6 @@ swap(char *buf_p, int cnt)
 	}
 	if (Args & (OCb | OCS)) {
 		tcnt = cnt;
-		/* LINTED alignment */
 		Swp_p = (union swpbuf *)buf_p;
 		while (tcnt-- > 0) {
 			thalf = Swp_p->s_half[0];
@@ -7034,7 +7032,7 @@ verbose(char *nam_p)
 			else
 				(void) printf("%-9s", Curpw_p->pw_name);
 		} else {
-			if (Curpw_p = getpwuid((int)Gen.g_uid)) {
+			if ((Curpw_p = getpwuid((int)Gen.g_uid)) != NULL) {
 				(void) printf("%-9s", Curpw_p->pw_name);
 				Lastuid = (uid_t)Gen.g_uid;
 			} else {
@@ -7048,7 +7046,7 @@ verbose(char *nam_p)
 			else
 				(void) printf("%-9s", Curgr_p->gr_name);
 		} else {
-			if (Curgr_p = getgrgid((int)Gen.g_gid)) {
+			if ((Curgr_p = getgrgid((int)Gen.g_gid)) != NULL) {
 				(void) printf("%-9s", Curgr_p->gr_name);
 				Lastgid = (gid_t)Gen.g_gid;
 			} else {
@@ -7278,7 +7276,6 @@ write_hdr(int arcflag, off_t len)
 		(void) memcpy(Buffr.b_in_p, &Hdr, cnt);
 		break;
 	case CHR:
-		/*LINTED*/
 		(void) sprintf(Buffr.b_in_p,
 		    "%.6lo%.6lo%.6lo%.6lo%.6lo%.6lo%.6lo%.6lo%.11lo%.6lo%."
 		    "11llo%s", G_p->g_magic, G_p->g_dev, G_p->g_ino, mode,
@@ -7288,7 +7285,6 @@ write_hdr(int arcflag, off_t len)
 		break;
 	case ASC:
 	case CRC:
-		/*LINTED*/
 		(void) sprintf(Buffr.b_in_p,
 		    "%.6lx%.8lx%.8lx%.8lx%.8lx%.8lx%.8lx%.8lx%.8lx%.8lx%."
 		    "8lx%.8lx%.8lx%.8lx%s",
@@ -7331,7 +7327,7 @@ write_hdr(int arcflag, off_t len)
 			    strlen(T_lname));
 		}
 		(void) strcpy(Thdr_p->tbuf.t_magic, TMAGIC);
-		(void) strcpy(Thdr_p->tbuf.t_version, TVERSION);
+		(void) memcpy(Thdr_p->tbuf.t_version, TVERSION, 2);
 		(void) strcpy(Thdr_p->tbuf.t_uname, G_p->g_uname);
 		(void) strcpy(Thdr_p->tbuf.t_gname, G_p->g_gname);
 		(void) sprintf(Thdr_p->tbuf.t_devmajor, "%07o",
@@ -7684,7 +7680,7 @@ read_bar_file_hdr(void)
 
 
 	name_p = Gen.g_nam_p;
-	while (*name_p++ = *start_of_name++)
+	while ((*name_p++ = *start_of_name++) != '\0')
 		;
 	*name_p = '\0';
 	if (bar_linkflag == LNKTYPE || bar_linkflag == SYMTYPE)
@@ -8808,7 +8804,8 @@ read_xattr_hdr()
 	    sizeof (struct xattr_hdr));
 	(void) sscanf(xattrp->h_namesz, "%7d", &namelen);
 	if (link_len > 0) {
-		xattr_linkp = (struct xattr_buf *)((int)xattrp + (int)comp_len);
+		xattr_linkp = (struct xattr_buf *)((intptr_t)xattrp +
+		    (int)comp_len);
 	} else {
 		xattr_linkp = NULL;
 	}
@@ -9034,7 +9031,6 @@ write_xattr_hdr()
 		    linkinfo, &attrlen);
 		Gen.g_filesz = attrlen;
 		write_hdr(ARCHIVE_XATTR, (off_t)attrlen);
-		/*LINTED*/
 		(void) sprintf(namep, "%s/%s", DEVNULL, Gen.g_attrnam_p);
 		write_ancillary(attrbuf, attrlen, B_TRUE);
 	}
@@ -9208,7 +9204,7 @@ sl_insert(dev_t device, ino_t inode, int ftype)
 
 	if (s->bal == 0) {
 		s->bal = a;
-		head->llink = (sl_info_t *)((int)head->llink + 1);
+		head->llink = (sl_info_t *)((intptr_t)head->llink + 1);
 		return (q);
 	} else if (s->bal == -a) {
 		s->bal = 0;
@@ -9372,7 +9368,7 @@ preview_attrs(char *s, char *attrparent)
 		return (1);
 	}
 
-	while (dp = readdir(dirp)) {
+	while ((dp = readdir(dirp)) != NULL) {
 		if (dp->d_name[0] == '.') {
 			if (dp->d_name[1] == '\0') {
 				Hiddendir = 1;
