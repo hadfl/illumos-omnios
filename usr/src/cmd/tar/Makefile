@@ -21,6 +21,7 @@
 #
 # Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
 # Copyright (c) 2018, Joyent, Inc.
+# Copyright 2022 OmniOS Community Edition (OmniOSce) Association.
 #
 
 PROG= tar
@@ -30,18 +31,17 @@ OBJS=		$(OBJS1) getresponse.o
 SRCS=		$(OBJS1:%.o=%.c) $(SRC)/common/util/getresponse.c
 
 include ../Makefile.cmd
+include ../Makefile.cmd.64
+include ../Makefile.ctf
 
-CPPFLAGS += -D_FILE_OFFSET_BITS=64 -I $(SRC)/common/util
+CPPFLAGS += -I $(SRC)/common/util
 DCFILE= $(PROG).dc
 
-LINTFLAGS += -u
 LDLIBS += -lsec -lcmdutils -lnvpair -ltsol
 
 CFLAGS += $(CCVERBOSE)
-CERRWARN += $(CNOWARN_UNINIT)
 
-# not linted
-SMATCH=off
+SMOFF += all_func_returns,strcpy_overflow
 
 CPPFLAGS += -DEUC
 
@@ -70,8 +70,6 @@ $(PROG):	$(OBJS)
 
 clean:
 	$(RM) $(OBJS)   
-
-lint:	lint_SRCS
 
 $(DCFILE):
 	$(RM) messages.po

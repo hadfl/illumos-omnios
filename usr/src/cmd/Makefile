@@ -354,6 +354,7 @@ COMMON_SUBDIRS=	\
 	syslogd		\
 	tabs		\
 	tail		\
+	tar		\
 	tcopy		\
 	tcpd		\
 	th_tools	\
@@ -465,7 +466,6 @@ COMMON_SUBDIRS=	\
 # sh - not 64bit clean
 # srchtxt - not 64bit clean
 # svr4pkg - not 64bit clean
-# tar - not 64bit clean
 # tput - not 64bit clean
 # tip - not 64bit clean
 # tbl - not 64bit clean
@@ -528,7 +528,6 @@ $(NOT_AARCH64_BLD)COMMON_SUBDIRS +=	\
 	sh		\
 	srchtxt		\
 	svr4pkg		\
-	tar		\
 	tput		\
 	tip		\
 	tbl		\

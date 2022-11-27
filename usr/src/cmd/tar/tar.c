@@ -32,6 +32,10 @@
 /*	  All Rights Reserved	*/
 
 /*
+ * Copyright 2022 OmniOS Community Edition (OmniOSce) Association.
+ */
+
+/*
  * Portions of this source code were derived from Berkeley 4.3 BSD
  * under license from the Regents of the University of California.
  */
@@ -365,7 +369,8 @@ union hblock {
 		char gname[32];
 		char devmajor[8];
 		char devminor[8];
-		char prefix[PRESIZ];	/* Together with "name", the path of */
+		char prefix[PRESIZ + 1];	/* Together with "name", */
+					/* the path of */
 					/* the file:  <prefix>/<name>	*/
 		char extno;		/* extent #, null if not split */
 		char extotal;		/* total extents */
@@ -961,7 +966,7 @@ main(int argc, char *argv[])
 
 	/* alloc a buffer of the right size */
 	if ((tbuf = (union hblock *)
-	    calloc(sizeof (union hblock) * nblock, sizeof (char))) ==
+	    calloc(nblock, sizeof (union hblock))) ==
 	    (union hblock *)NULL) {
 		(void) fprintf(stderr, gettext(
 		"tar: cannot allocate physio buffer\n"));
@@ -1099,7 +1104,7 @@ main(int argc, char *argv[])
 			if (mt < 0) {
 				if (cflag == 0 || (mt =  creat(usefile, 0666))
 				    < 0)
-				vperror(1, "%s", usefile);
+					vperror(1, "%s", usefile);
 			}
 		}
 		/* Get inode and device number of output file */
@@ -1287,6 +1292,7 @@ dorep(char *argv[])
 			if (Eflag)
 				fatal(gettext("Archive contains no extended"
 				    " header.  -E flag not allowed.\n"));
+			ret = 0;
 		}
 		while (!endtape()) {		/* changed from a do while */
 			setbytes_to_skip(&stbuf, ret);
@@ -1298,7 +1304,7 @@ dorep(char *argv[])
 			if (Xhdrflag > 0)
 				ret = get_xdata();
 		}
-		if (ret == 0) {
+		if (Xhdrflag > 0 && ret == 0) {
 			if ((dblock.dbuf.typeflag != 'A') &&
 			    (xhdr_flgs != 0)) {
 				load_info_from_xtarhdr(xhdr_flgs,
@@ -2070,14 +2076,9 @@ putfile(char *longname, char *shortname, char *parent, attr_data_t *attrinfo,
 		stbuf.st_size = (off_t)0;
 		blocks = TBLOCKS(stbuf.st_size);
 
-		if (filetype != XATTR_FILE && Hiddendir == 0) {
-			i = 0;
-			cp = buf;
-			while ((*cp++ = longname[i++]))
-				;
-			*--cp = '/';
-			*++cp = 0;
-		}
+		if (filetype != XATTR_FILE && Hiddendir == 0)
+			strcat(longname, "/");
+
 		if (!oflag) {
 			tomodes(&stbuf);
 			if (build_dblock(name, tchar, '5', filetype,
@@ -2228,6 +2229,7 @@ putfile(char *longname, char *shortname, char *parent, attr_data_t *attrinfo,
 		 * directory before archiving the next file in the
 		 * current directory.
 		 */
+		cp = &longname[strlen(longname)];
 		while ((child != NULL) && !term) {
 			(void) strcpy(cp, child->name);
 			archtype = putfile(buf, cp, newparent, NULL,
@@ -2932,7 +2934,7 @@ doxtract(char *argv[])
 	blkcnt_t blocks;
 	off_t bytes;
 	int ofile;
-	int newfile;			/* Does the file already exist  */
+	int newfile = FALSE;		/* Does the file already exist  */
 	int xcnt = 0;			/* count # files extracted */
 	int fcnt = 0;			/* count # files in argv list */
 	int dir;
@@ -3469,95 +3471,233 @@ doxtract(char *argv[])
 #endif
 				continue;
 			}
-		newfile = ((fstatat(dirfd, comp,
-		    &xtractbuf, 0) == -1) ? TRUE : FALSE);
-		ofile = openat(dirfd, comp, O_RDWR|O_CREAT|O_TRUNC,
-		    stbuf.st_mode & MODEMASK);
-		saveerrno = errno;
+			newfile = ((fstatat(dirfd, comp,
+			    &xtractbuf, 0) == -1) ? TRUE : FALSE);
+			ofile = openat(dirfd, comp, O_RDWR|O_CREAT|O_TRUNC,
+			    stbuf.st_mode & MODEMASK);
+			saveerrno = errno;
 
-#if defined(O_XATTR)
-		if (xattrp != NULL) {
-			if (ofile < 0) {
-				ofile = retry_open_attr(dirfd, cwd,
-				    dirp, attrinfo->attr_parent, comp,
-				    O_RDWR|O_CREAT|O_TRUNC,
-				    stbuf.st_mode & MODEMASK);
-			}
-		}
-#endif
-		if (ofile < 0) {
-			errno = saveerrno;
-			(void) fprintf(stderr, gettext(
-			    "tar: %s%s%s%s - cannot create\n"),
-			    (xattrp == NULL) ? "" : (rw_sysattr ?
-			    gettext("system attribute ") :
-			    gettext("attribute ")),
-			    (xattrp == NULL) ? "" : xattrapath,
-			    (xattrp == NULL) ? "" : gettext(" of "),
-			    (xattrp == NULL) ? comp : namep);
-			if (errflag)
-				done(1);
-			else
-				Errflg = 1;
 #if defined(O_XATTR)
 			if (xattrp != NULL) {
-				dblock.dbuf.typeflag = _XATTR_HDRTYPE;
-				free(xattrhead);
-				xattrp = NULL;
-				xattr_linkp = NULL;
-				xattrhead = NULL;
+				if (ofile < 0) {
+					ofile = retry_open_attr(dirfd, cwd,
+					    dirp, attrinfo->attr_parent, comp,
+					    O_RDWR|O_CREAT|O_TRUNC,
+					    stbuf.st_mode & MODEMASK);
+				}
 			}
 #endif
-			passtape();
-			continue;
-		}
-
-		if (Tflag && (check_ext_attr(namep) == 0)) {
-			if (errflag)
-				done(1);
-			else
-				Errflg = 1;
-			passtape();
-			continue;
-		}
-
-		if (extno != 0) {	/* file is in pieces */
-			if (extotal < 1 || extotal > MAXEXT)
+			if (ofile < 0) {
+				errno = saveerrno;
 				(void) fprintf(stderr, gettext(
-				    "tar: ignoring bad extent info for "
-				    "%s%s%s%s\n"),
+				    "tar: %s%s%s%s - cannot create\n"),
 				    (xattrp == NULL) ? "" : (rw_sysattr ?
 				    gettext("system attribute ") :
 				    gettext("attribute ")),
 				    (xattrp == NULL) ? "" : xattrapath,
 				    (xattrp == NULL) ? "" : gettext(" of "),
 				    (xattrp == NULL) ? comp : namep);
-			else {
-				/* extract it */
-				(void) xsfile(rw_sysattr, ofile);
+				if (errflag)
+					done(1);
+				else
+					Errflg = 1;
+#if defined(O_XATTR)
+				if (xattrp != NULL) {
+					dblock.dbuf.typeflag = _XATTR_HDRTYPE;
+					free(xattrhead);
+					xattrp = NULL;
+					xattr_linkp = NULL;
+					xattrhead = NULL;
+				}
+#endif
+				passtape();
+				continue;
 			}
-		}
-		extno = 0;	/* let everyone know file is not split */
-		bytes = stbuf.st_size;
-		blocks = TBLOCKS(bytes);
-		if (vflag) {
-			(void) fprintf(vfile,
-			    "x %s%s%s, %" FMT_off_t " %s, ",
-			    (xattrp == NULL) ? "" : dirp,
-			    (xattrp == NULL) ? "" : (rw_sysattr ?
-			    gettext(" system attribute ") :
-			    gettext(" attribute ")),
-			    (xattrp == NULL) ? namep : xattrapath, bytes,
-			    gettext("bytes"));
-			if (NotTape)
-				(void) fprintf(vfile, "%" FMT_blkcnt_t "K\n",
-				    K(blocks));
-			else
-				(void) fprintf(vfile, gettext("%"
-				    FMT_blkcnt_t " tape blocks\n"), blocks);
-		}
 
-		if (xblocks(rw_sysattr, bytes, ofile) != 0) {
+			if (Tflag && (check_ext_attr(namep) == 0)) {
+				if (errflag)
+					done(1);
+				else
+					Errflg = 1;
+				passtape();
+				continue;
+			}
+
+			if (extno != 0) {	/* file is in pieces */
+				if (extotal < 1 || extotal > MAXEXT)
+					(void) fprintf(stderr, gettext(
+					    "tar: ignoring bad extent info for "
+					    "%s%s%s%s\n"),
+					    (xattrp == NULL) ? "" :
+					    (rw_sysattr ?
+					    gettext("system attribute ") :
+					    gettext("attribute ")),
+					    (xattrp == NULL) ? "" : xattrapath,
+					    (xattrp == NULL) ? "" :
+					    gettext(" of "),
+					    (xattrp == NULL) ? comp : namep);
+				else {
+					/* extract it */
+					(void) xsfile(rw_sysattr, ofile);
+				}
+			}
+			/* let everyone know file is not split */
+			extno = 0;
+			bytes = stbuf.st_size;
+			blocks = TBLOCKS(bytes);
+			if (vflag) {
+				(void) fprintf(vfile,
+				    "x %s%s%s, %" FMT_off_t " %s, ",
+				    (xattrp == NULL) ? "" : dirp,
+				    (xattrp == NULL) ? "" : (rw_sysattr ?
+				    gettext(" system attribute ") :
+				    gettext(" attribute ")),
+				    (xattrp == NULL) ? namep : xattrapath,
+				    bytes, gettext("bytes"));
+				if (NotTape)
+					(void) fprintf(vfile,
+					    "%" FMT_blkcnt_t "K\n", K(blocks));
+				else
+					(void) fprintf(vfile, gettext("%"
+					    FMT_blkcnt_t " tape blocks\n"),
+					    blocks);
+			}
+
+			if (xblocks(rw_sysattr, bytes, ofile) != 0) {
+#if defined(O_XATTR)
+				if (xattrp != NULL) {
+					free(xattrhead);
+					xattrp = NULL;
+					xattr_linkp = NULL;
+					xattrhead = NULL;
+				}
+#endif
+				continue;
+			}
+filedone:
+			if (mflag == 0 && !symflag) {
+				if (dir)
+					doDirTimes(namep, stbuf.st_mtim);
+
+				else {
+#if defined(O_XATTR)
+					if (xattrp != NULL) {
+						/*
+						 * Set the time on the attribute
+						 * unless the attribute is a
+						 * system attribute (can't
+						 * successfully do this) or the
+						 * hidden attribute directory,
+						 * "." (the time on the hidden
+						 * attribute directory will be
+						 * updated when attributes are
+						 * restored, otherwise it's
+						 * transient).
+						 */
+						if (!rw_sysattr && (Hiddendir ==
+						    0)) {
+							setPathTimes(dirfd,
+							    comp,
+							    stbuf.st_mtim);
+						}
+					} else
+						setPathTimes(dirfd, comp,
+						    stbuf.st_mtim);
+#else
+					setPathTimes(dirfd, comp,
+					    stbuf.st_mtim);
+#endif
+				}
+			}
+
+			/* moved this code from above */
+			if (pflag && !symflag && Hiddendir == 0) {
+				if (xattrp != NULL)
+					(void) fchmod(ofile, stbuf.st_mode &
+					    MODEMASK);
+				else
+					(void) chmod(namep, stbuf.st_mode &
+					    MODEMASK);
+			}
+
+
+			/*
+			 * Because ancillary file preceeds the normal file,
+			 * acl info may have been retrieved (in aclp).
+			 * All file types are directed here (go filedone).
+			 * Always restore ACLs if there are ACLs.
+			 */
+			if (aclp != NULL) {
+				int ret;
+
+#if defined(O_XATTR)
+				if (xattrp != NULL) {
+					if (Hiddendir)
+						ret = facl_set(dirfd, aclp);
+					else
+						ret = facl_set(ofile, aclp);
+				} else {
+					ret = acl_set(namep, aclp);
+				}
+#else
+				ret = acl_set(namep, aclp);
+#endif
+				if (ret < 0) {
+					if (pflag) {
+						(void) fprintf(stderr, gettext(
+						    "%s%s%s%s: failed to set "
+						    "acl entries\n"), namep,
+						    (xattrp == NULL) ? "" :
+						    (rw_sysattr ? gettext(
+						    " system attribute ") :
+						    gettext(" attribute ")),
+						    (xattrp == NULL) ? "" :
+						    xattrapath);
+					}
+					/* else: silent and continue */
+				}
+				acl_free(aclp);
+				aclp = NULL;
+			}
+
+			if (!oflag)
+				/* set file ownership */
+				resugname(dirfd, comp, symflag);
+
+			if (pflag && newfile == TRUE && !dir &&
+			    (dblock.dbuf.typeflag == '0' ||
+			    dblock.dbuf.typeflag == '\0' ||
+			    convflag || dblock.dbuf.typeflag == '1')) {
+				if (fstat(ofile, &xtractbuf) == -1)
+					(void) fprintf(stderr, gettext(
+					    "tar: cannot stat extracted file "
+					    "%s%s%s%s\n"),
+					    (xattrp == NULL) ? "" :
+					    (rw_sysattr ?
+					    gettext("system attribute ") :
+					    gettext("attribute ")),
+					    (xattrp == NULL) ? "" : xattrapath,
+					    (xattrp == NULL) ? "" :
+					    gettext(" of "), namep);
+
+				else if ((xtractbuf.st_mode & (MODEMASK &
+				    ~S_IFMT)) != (stbuf.st_mode &
+				    (MODEMASK & ~S_IFMT))) {
+					(void) fprintf(stderr, gettext(
+					    "tar: warning - file permissions "
+					    "have changed for %s%s%s%s (are "
+					    "0%o, should be 0%o)\n"),
+					    (xattrp == NULL) ? "" :
+					    (rw_sysattr ?
+					    gettext("system attribute ") :
+					    gettext("attribute ")),
+					    (xattrp == NULL) ? "" : xattrapath,
+					    (xattrp == NULL) ? "" :
+					    gettext(" of "), namep,
+					    xtractbuf.st_mode, stbuf.st_mode);
+
+				}
+			}
 #if defined(O_XATTR)
 			if (xattrp != NULL) {
 				free(xattrhead);
@@ -3566,138 +3706,15 @@ doxtract(char *argv[])
 				xattrhead = NULL;
 			}
 #endif
-			continue;
-		}
-filedone:
-		if (mflag == 0 && !symflag) {
-			if (dir)
-				doDirTimes(namep, stbuf.st_mtim);
 
-			else
-#if defined(O_XATTR)
-				if (xattrp != NULL) {
-					/*
-					 * Set the time on the attribute unless
-					 * the attribute is a system attribute
-					 * (can't successfully do this) or the
-					 * hidden attribute directory, "." (the
-					 * time on the hidden attribute
-					 * directory will be updated when
-					 * attributes are restored, otherwise
-					 * it's transient).
-					 */
-					if (!rw_sysattr && (Hiddendir == 0)) {
-						setPathTimes(dirfd, comp,
-						    stbuf.st_mtim);
-					}
-				} else
-					setPathTimes(dirfd, comp,
-					    stbuf.st_mtim);
-#else
-				setPathTimes(dirfd, comp, stbuf.st_mtim);
-#endif
-		}
-
-		/* moved this code from above */
-		if (pflag && !symflag && Hiddendir == 0) {
-			if (xattrp != NULL)
-				(void) fchmod(ofile, stbuf.st_mode & MODEMASK);
-			else
-				(void) chmod(namep, stbuf.st_mode & MODEMASK);
-		}
-
-
-		/*
-		 * Because ancillary file preceeds the normal file,
-		 * acl info may have been retrieved (in aclp).
-		 * All file types are directed here (go filedone).
-		 * Always restore ACLs if there are ACLs.
-		 */
-		if (aclp != NULL) {
-			int ret;
-
-#if defined(O_XATTR)
-			if (xattrp != NULL) {
-				if (Hiddendir)
-					ret = facl_set(dirfd, aclp);
-				else
-					ret = facl_set(ofile, aclp);
-			} else {
-				ret = acl_set(namep, aclp);
+			if (ofile != -1) {
+				(void) close(dirfd);
+				dirfd = -1;
+				if (close(ofile) != 0)
+					vperror(2, gettext("close error"));
+				ofile = -1;
 			}
-#else
-			ret = acl_set(namep, aclp);
-#endif
-			if (ret < 0) {
-				if (pflag) {
-					(void) fprintf(stderr, gettext(
-					    "%s%s%s%s: failed to set acl "
-					    "entries\n"), namep,
-					    (xattrp == NULL) ? "" :
-					    (rw_sysattr ? gettext(
-					    " system attribute ") :
-					    gettext(" attribute ")),
-					    (xattrp == NULL) ? "" :
-					    xattrapath);
-				}
-				/* else: silent and continue */
-			}
-			acl_free(aclp);
-			aclp = NULL;
-		}
-
-		if (!oflag)
-			/* set file ownership */
-			resugname(dirfd, comp, symflag);
-
-		if (pflag && newfile == TRUE && !dir &&
-		    (dblock.dbuf.typeflag == '0' ||
-		    dblock.dbuf.typeflag == '\0' ||
-		    convflag || dblock.dbuf.typeflag == '1')) {
-			if (fstat(ofile, &xtractbuf) == -1)
-				(void) fprintf(stderr, gettext(
-				    "tar: cannot stat extracted file "
-				    "%s%s%s%s\n"),
-				    (xattrp == NULL) ? "" : (rw_sysattr ?
-				    gettext("system attribute ") :
-				    gettext("attribute ")),
-				    (xattrp == NULL) ? "" : xattrapath,
-				    (xattrp == NULL) ? "" :
-				    gettext(" of "), namep);
-
-			else if ((xtractbuf.st_mode & (MODEMASK & ~S_IFMT))
-			    != (stbuf.st_mode & (MODEMASK & ~S_IFMT))) {
-				(void) fprintf(stderr, gettext(
-				    "tar: warning - file permissions have "
-				    "changed for %s%s%s%s (are 0%o, should be "
-				    "0%o)\n"),
-				    (xattrp == NULL) ? "" : (rw_sysattr ?
-				    gettext("system attribute ") :
-				    gettext("attribute ")),
-				    (xattrp == NULL) ? "" : xattrapath,
-				    (xattrp == NULL) ? "" :
-				    gettext(" of "), namep,
-				    xtractbuf.st_mode, stbuf.st_mode);
-
-			}
-		}
-#if defined(O_XATTR)
-		if (xattrp != NULL) {
-			free(xattrhead);
-			xattrp = NULL;
-			xattr_linkp = NULL;
-			xattrhead = NULL;
-		}
-#endif
-
-		if (ofile != -1) {
-			(void) close(dirfd);
-			dirfd = -1;
-			if (close(ofile) != 0)
-				vperror(2, gettext("close error"));
-			ofile = -1;
-		}
-		xcnt++;			/* increment # files extracted */
+			xcnt++;		/* increment # files extracted */
 		}
 
 		/*
@@ -3837,12 +3854,12 @@ filedone:
 	doDirTimes(NULL, time_zero);
 
 #if defined(O_XATTR)
-		if (xattrp != NULL) {
-			free(xattrhead);
-			xattrp = NULL;
-			xattr_linkp = NULL;
-			xattrhead = NULL;
-		}
+	if (xattrp != NULL) {
+		free(xattrhead);
+		xattrp = NULL;
+		xattr_linkp = NULL;
+		xattrhead = NULL;
+	}
 #endif
 
 	/*
@@ -4570,9 +4587,11 @@ resugname(int dirfd,	/* dir fd file resides in */
 	} else if (checkflag == 2) { /* tar format and euid == 0 */
 		duid = sp->st_uid;
 		dgid = sp->st_gid;
+	} else {
+		return;
 	}
-	if ((checkflag == 1) || (checkflag == 2))
-		(void) fchownat(dirfd, name, duid, dgid, symflag);
+
+	(void) fchownat(dirfd, name, duid, dgid, symflag);
 }
 
 /*ARGSUSED*/
@@ -5530,8 +5549,7 @@ add_file_to_table(file_list_t *table[], char *str)
 	}
 
 	h = hash(name);
-	if ((exp = (file_list_t *)calloc(sizeof (file_list_t),
-	    sizeof (char))) == NULL) {
+	if ((exp = (file_list_t *)calloc(1, sizeof (file_list_t))) == NULL) {
 		(void) fprintf(stderr, gettext(
 		    "tar: out of memory, exclude/include table(entry)\n"));
 		exit(1);
@@ -8271,7 +8289,7 @@ read_xattr_hdr(attr_data_t **attrinfo)
 	(void) sscanf(xattrp->h_namesz, "%7d", &namelen);
 	if (link_len > 0)
 		xattr_linkp = (struct xattr_buf *)
-		    ((int)xattrp + (int)comp_len);
+		    ((intptr_t)xattrp + (int)comp_len);
 	else
 		xattr_linkp = NULL;
 
@@ -8447,14 +8465,14 @@ retry_open_attr(int pdirfd, int cwd, char *dirp, char *pattr, char *name,
 		    "tar: cannot stat %sfile %s: %s\n"),
 		    (pdirfd == -1) ? "" : gettext("parent of "),
 		    (pdirfd == -1) ? dirp : name, strerror(errno));
-			return (-1);
+		return (-1);
 	}
 	if ((error = facl_get(dirfd, ACL_NO_TRIVIAL, &aclp)) != 0) {
 		(void) fprintf(stderr, gettext(
 		    "tar: failed to retrieve ACL on %sfile %s: %s\n"),
 		    (pdirfd == -1) ? "" : gettext("parent of "),
 		    (pdirfd == -1) ? dirp : name, strerror(errno));
-			return (-1);
+		return (-1);
 	}
 
 	newmode = S_IWUSR | parentstat.st_mode;
