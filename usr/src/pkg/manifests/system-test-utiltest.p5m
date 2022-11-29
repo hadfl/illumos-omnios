@@ -1065,6 +1065,15 @@ file path=opt/util-tests/tests/awk/tests/penicil.p mode=0444
 file path=opt/util-tests/tests/awk/tests/res.ok mode=0444
 file path=opt/util-tests/tests/awk/tests/res.p mode=0444
 file path=opt/util-tests/tests/chown_test mode=0555
+dir  path=opt/util-tests/tests/cpio
+file path=opt/util-tests/tests/cpio/cpio_test mode=0555
+dir  path=opt/util-tests/tests/cpio/files/
+file path=opt/util-tests/tests/cpio/files/freebsd.cpio.cpio mode=0444
+file path=opt/util-tests/tests/cpio/files/freebsd.newc.cpio mode=0444
+file path=opt/util-tests/tests/cpio/files/freebsd.odc.cpio mode=0444
+file path=opt/util-tests/tests/cpio/files/freebsd.pax.cpio mode=0444
+file path=opt/util-tests/tests/cpio/files/freebsd.ustar.cpio mode=0444
+file path=opt/util-tests/tests/cpio/files/zero.bar mode=0444
 dir  path=opt/util-tests/tests/ctf
 file path=opt/util-tests/tests/ctf/Makefile.ctftest.com mode=0555
 file path=opt/util-tests/tests/ctf/check-array mode=0555

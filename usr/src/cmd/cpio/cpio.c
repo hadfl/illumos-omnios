@@ -117,6 +117,15 @@ typedef	ulong_t		u_off_t;
     path : Gen.g_attrnam_p), statbuf, 0)
 
 /*
+ * Convert from and to old dev_t formats.
+ */
+#define	SVR3_MAJOR(x)	((major_t)((dev_t)(x) >> ONBITSMINOR) & OMAXMAJ)
+#define	SVR3_MINOR(x)	((minor_t)((dev_t)(x) & OMAXMIN))
+#define	TO_SVR3(maj, min) \
+	((((ushort_t)(maj) & OMAXMAJ) << ONBITSMINOR) | \
+	((ushort_t)(min) & OMAXMIN))
+
+/*
  *	These limits reflect the maximum size regular file that
  *	can be archived, depending on the archive type. For archives
  *	with character-format headers (odc, tar, ustar) we use
@@ -244,9 +253,9 @@ struct gen_hdr {
 		g_nlink,	/* Number of links */
 		g_mtime;	/* Modification time */
 	off_t	g_filesz;	/* Length of file */
-	ulong_t	g_dev,		/* File system of file */
-		g_rdev,		/* Major/minor numbers of special files */
-		g_namesz,	/* Length of filename */
+	dev_t	g_dev,		/* File system of file */
+		g_rdev;		/* Major/minor numbers of special files */
+	ulong_t	g_namesz,	/* Length of filename */
 		g_cksum;	/* Checksum of file */
 	char	g_gname[32],
 		g_uname[32],
@@ -1978,7 +1987,6 @@ creat_spec(int dirfd)
 			 * Note that, for a socket, the third
 			 * parameter to mknod() is ignored.
 			 */
-
 			result = mknod(nam_p, (int)G_p->g_mode,
 			    (int)G_p->g_rdev);
 		}
@@ -5845,6 +5853,12 @@ read_hdr(int hdr)
 		Gen.g_ino = Hdr.h_ino;
 		Gen.g_dev = Hdr.h_dev;
 		Gen.g_rdev = Hdr.h_rdev;
+		maj = SVR3_MAJOR(Gen.g_dev);
+		rmaj = SVR3_MAJOR(Gen.g_rdev);
+		min = SVR3_MINOR(Gen.g_dev);
+		rmin = SVR3_MINOR(Gen.g_rdev);
+		Gen.g_dev = makedev(maj, min);
+		Gen.g_rdev = makedev(rmaj, rmin);
 		Gen.g_cksum = 0L;
 		Gen.g_filesz = (off_t)mklong(Hdr.h_filesize);
 		Gen.g_namesz = Hdr.h_namesize;
@@ -5858,20 +5872,12 @@ read_hdr(int hdr)
 		    (ulong_t *)&Gen.g_mtime, (uint_t *)&Gen.g_namesz,
 		    (u_off_t *)&Gen.g_filesz) == CHR_CNT) {
 			rv = CHR;
-#define	cpioMAJOR(x)	(int)(((unsigned)x >> 8) & 0x7F)
-#define	cpioMINOR(x)	(int)(x & 0xFF)
-			maj = cpioMAJOR(Gen.g_dev);
-			rmaj = cpioMAJOR(Gen.g_rdev);
-			min = cpioMINOR(Gen.g_dev);
-			rmin = cpioMINOR(Gen.g_rdev);
-			if (Use_old_stat) {
-				/* needs error checking */
-				Gen.g_dev = (maj << 8) | min;
-				Gen.g_rdev = (rmaj << 8) | rmin;
-			} else {
-				Gen.g_dev = makedev(maj, min);
-				Gen.g_rdev = makedev(rmaj, rmin);
-			}
+			maj = SVR3_MAJOR(Gen.g_dev);
+			rmaj = SVR3_MAJOR(Gen.g_rdev);
+			min = SVR3_MINOR(Gen.g_dev);
+			rmin = SVR3_MINOR(Gen.g_rdev);
+			Gen.g_dev = makedev(maj, min);
+			Gen.g_rdev = makedev(rmaj, rmin);
 		}
 		break;
 	case ASC:
@@ -5941,14 +5947,12 @@ read_hdr(int hdr)
 			    (char *)&Gen.g_uname);
 			(void) sscanf(Thdr_p->tbuf.t_gname, "%32s",
 			    (char *)&Gen.g_gname);
-			(void) sscanf(Thdr_p->tbuf.t_devmajor, "%8lo",
-			    &Gen.g_dev);
-			(void) sscanf(Thdr_p->tbuf.t_devminor, "%8lo",
-			    &Gen.g_rdev);
+			(void) sscanf(Thdr_p->tbuf.t_devmajor, "%8lo", &maj);
+			(void) sscanf(Thdr_p->tbuf.t_devminor, "%8lo", &min);
 			(void) strncpy((char *)&prebuf,
 			    Thdr_p->tbuf.t_prefix, PRESIZ);
 			Gen.g_namesz = strlen(Gen.g_nam_p) + 1;
-			Gen.g_dev = makedev(maj, min);
+			Gen.g_rdev = makedev(maj, min);
 		}
 		rv = USTAR;
 		break;
@@ -5984,8 +5988,9 @@ read_hdr(int hdr)
 			read_bar_vol_hdr();
 			bar_read_cnt++;
 		}
-		else
+		else {
 			read_bar_file_hdr();
+		}
 		rv = BAR;
 		break;
 	default:
@@ -7129,6 +7134,8 @@ write_hdr(int arcflag, off_t len)
 {
 	int cnt = 0, pad;
 	mode_t mode = 0;
+	major_t maj;
+	minor_t min;
 	uid_t uid;
 	gid_t gid;
 	const char warnfmt[] = "%s%s%s : %s";
@@ -7257,7 +7264,13 @@ write_hdr(int arcflag, off_t len)
 		Hdr.h_gid = gid;
 		Hdr.h_mode = mode;
 		Hdr.h_nlink = G_p->g_nlink;
-		Hdr.h_rdev = G_p->g_rdev;
+		maj = major(G_p->g_rdev);
+		min = minor(G_p->g_rdev);
+		if (maj > (ulong_t)OMAXMAJ)
+			maj = 0;
+		if (min > (ulong_t)OMAXMIN)
+			min = 0;
+		Hdr.h_rdev = TO_SVR3(maj, min);
 		mkshort(Hdr.h_mtime, (long)G_p->g_mtime);
 		Hdr.h_namesize = (short)G_p->g_namesz;
 		mkshort(Hdr.h_filesize, (long)len);
@@ -7643,6 +7656,8 @@ read_bar_file_hdr(void)
 	union b_block *tmp_hdr;
 	char *start_of_name, *name_p;
 	char *tmp;
+	major_t maj;
+	minor_t min;
 
 	if (*Buffr.b_out_p == '\0') {
 		*Gen.g_nam_p = '\0';
@@ -7661,9 +7676,9 @@ read_bar_file_hdr(void)
 	(void) sscanf(tmp_hdr->dbuf.chksum, "%8lo", &Gen.g_cksum);
 	(void) sscanf(tmp_hdr->dbuf.rdev, "%8lo", &Gen.g_rdev);
 
-#define	to_new_major(x)	(int)((unsigned)((x) & OMAXMAJ) << NBITSMINOR)
-#define	to_new_minor(x)	(int)((x) & OMAXMIN)
-	Gen.g_rdev = to_new_major(Gen.g_rdev) | to_new_minor(Gen.g_rdev);
+	maj = SVR3_MAJOR(Gen.g_rdev);
+	min = SVR3_MINOR(Gen.g_rdev);
+	Gen.g_rdev = makedev(maj, min);
 	bar_linkflag = tmp_hdr->dbuf.linkflag;
 	start_of_name = &tmp_hdr->dbuf.start_of_name;
 

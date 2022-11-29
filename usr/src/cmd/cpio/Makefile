@@ -29,6 +29,8 @@ OBJS= cpio.o cpiostat.o utils.o
 SRCS= $(OBJS:%.o=%.c)
 
 include ../Makefile.cmd
+include ../Makefile.ctf
+
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -DSOLARIS_PRIVS
 CERRWARN += -_gcc=-Wno-parentheses
 
