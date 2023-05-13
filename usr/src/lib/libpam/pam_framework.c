@@ -25,6 +25,7 @@
 
 /*
  * Copyright 2020, Joyent, Inc.
+ * Copyright 2023 OmniOS Community Edition (OmniOSce) Association.
  */
 
 #include <syslog.h>
@@ -2702,7 +2703,8 @@ do_conv(pam_handle_t *pamh, int msg_style, int num_msg,
 	/*
 	 * Call conv function to display the prompt.
 	 */
-	retcode = (pam_convp->conv)(num_msg, &msg, ret_respp, conv_apdp);
+	retcode = (pam_convp->conv)(num_msg, (const struct pam_message **)&msg,
+	    ret_respp, conv_apdp);
 	pam_trace(PAM_DEBUG_CONV,
 	    "pam_conv_resp(%p pam_conv = %s) ret_respp = %p",
 	    (void *)pamh, pam_strerror(pamh, retcode), (void *)ret_respp);

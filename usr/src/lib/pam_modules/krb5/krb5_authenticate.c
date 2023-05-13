@@ -21,6 +21,8 @@
 
 /*
  * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
+ *
+ * Copyright 2023 OmniOS Community Edition (OmniOSce) Association.
  */
 
 #include <security/pam_appl.h>
@@ -444,8 +446,8 @@ pam_krb5_prompter(
 	 * Call PAM conv function to display the prompt.
 	 */
 
-	if ((pam_convp->conv)(num_prompts, &msgs, &ret_respp,
-	    pam_convp->appdata_ptr) == PAM_SUCCESS) {
+	if ((pam_convp->conv)(num_prompts, (const struct pam_message **)&msgs,
+	    &ret_respp, pam_convp->appdata_ptr) == PAM_SUCCESS) {
 		for (i = 0; i < num_prompts; i++) {
 			/* convert PAM response to krb prompt reply format */
 			assert(prompts[i].reply->data != NULL);

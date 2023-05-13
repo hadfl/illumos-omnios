@@ -21,6 +21,8 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ *
+ * Copyright 2023 OmniOS Community Edition (OmniOSce) Association.
  */
 
 #ifndef _PAM_APPL_H
@@ -138,7 +140,7 @@ struct pam_response {
  * call back function pointers and application data pointers to the scheme
  */
 struct pam_conv {
-	int (*conv)(int, struct pam_message **,
+	int (*conv)(int, const struct pam_message **,
 	    struct pam_response **, void *);
 	void *appdata_ptr;		/* Application data ptr */
 };

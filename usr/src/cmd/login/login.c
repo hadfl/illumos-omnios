@@ -22,6 +22,8 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ *
+ * Copyright 2023 OmniOS Community Edition (OmniOSce) Association.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
@@ -341,7 +343,7 @@ static	int	fflag;
 
 static char ** getargs(char *);
 
-static int login_conv(int, struct pam_message **,
+static int login_conv(int, const struct pam_message **,
     struct pam_response **, void *);
 
 static struct pam_conv pam_conv = {login_conv, NULL};
@@ -796,15 +798,14 @@ turn_on_logging(void)
  *	a PAM authentication module to print error messages
  *	or garner information from the user.
  */
-/*ARGSUSED*/
 static int
-login_conv(int num_msg, struct pam_message **msg,
+login_conv(int num_msg, const struct pam_message **msg,
     struct pam_response **response, void *appdata_ptr)
 {
-	struct pam_message	*m;
-	struct pam_response	*r;
-	char			*temp;
-	int			k, i;
+	const struct pam_message *m;
+	struct pam_response *r;
+	char *temp;
+	int k, i;
 
 	if (num_msg <= 0)
 		return (PAM_CONV_ERR);
@@ -1539,7 +1540,7 @@ static char	*speeds[] = {
 	"0", "50", "75", "110", "134", "150", "200", "300",
 	"600", "1200", "1800", "2400", "4800", "9600", "19200", "38400",
 	"57600", "76800", "115200", "153600", "230400", "307200", "460800",
-	"921600", "1000000", "1152000", "1500000", "2000000", "2500000", 
+	"921600", "1000000", "1152000", "1500000", "2000000", "2500000",
 	"3000000", "3500000", "4000000"
 };
 
