@@ -188,7 +188,7 @@ extern int
 pam_get_item(
 	const pam_handle_t *pamh, 	/* PAM handle */
 	int item_type, 			/* Type of object - see below */
-	void **	item			/* Address of place to put pointer */
+	const void **item		/* Address of place to put pointer */
 					/*   to object */
 );
 
@@ -225,9 +225,9 @@ typedef struct pam_repository pam_repository_t;
 
 extern int
 pam_get_user(
-	pam_handle_t *pamh,		/* PAM handle */
-	char **user, 			/* User Name */
-	const char *prompt		/* Prompt */
+	pam_handle_t *pamh,	/* PAM handle */
+	const char **user, 	/* User Name */
+	const char *prompt	/* Prompt */
 );
 
 /*

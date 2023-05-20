@@ -13,7 +13,7 @@ pam_chauthtok \- perform password related functions within the PAM framework
 \fBcc\fR [ \fIflag\fR ... ] \fIfile\fR ... \fB-lpam\fR [ \fIlibrary\fR ... ]
 #include <security/pam_appl.h>
 
-\fBint\fR \fBpam_chauthtok\fR(\fBpam_handle_t *\fR\fIpamh\fR, \fBconst int\fR \fIflags\fR);
+\fBint\fR \fBpam_chauthtok\fR(\fBpam_handle_t *\fR\fIpamh\fR, \fBint\fR \fIflags\fR);
 .fi
 
 .SH DESCRIPTION

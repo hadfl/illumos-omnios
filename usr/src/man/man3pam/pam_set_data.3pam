@@ -10,7 +10,7 @@ pam_set_data, pam_get_data \- PAM routines to maintain module specific state
 .LP
 .nf
 \fBcc\fR [ \fIflag\fR ... ] \fIfile\fR ... \fB-lpam\fR [ \fIlibrary\fR ... ]
-#include <security/pam_appl.h>
+#include <security/pam_modules.h>
 
 
 

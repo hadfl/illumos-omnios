@@ -21,6 +21,8 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ *
+ * Copyright 2023 OmniOS Community Edition (OmniOSce) Association.
  */
 
 
@@ -98,8 +100,8 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	char *user;
 	char *oldpw;
 	char *newpw;
-	char *service;
-	struct pam_repository *auth_rep;
+	const char *service;
+	const struct pam_repository *auth_rep;
 	int res;
 	char msg[PAM_MAX_NUM_MSG][PAM_MAX_MSG_SIZE];
 	int updated_reps = 0;
@@ -133,13 +135,13 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	}
 #endif
 
-	res = pam_get_item(pamh, PAM_SERVICE, (void **)&service);
+	res = pam_get_item(pamh, PAM_SERVICE, (const void **)&service);
 	if (res != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_authtok_store: error getting SERVICE");
 		return (PAM_SYSTEM_ERR);
 	}
 
-	res = pam_get_item(pamh, PAM_USER, (void **)&user);
+	res = pam_get_item(pamh, PAM_USER, (const void **)&user);
 	if (res != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_authtok_store: error getting USER");
 		return (PAM_SYSTEM_ERR);
@@ -150,13 +152,13 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		return (PAM_USER_UNKNOWN);
 	}
 
-	res = pam_get_item(pamh, PAM_OLDAUTHTOK, (void **)&oldpw);
+	res = pam_get_item(pamh, PAM_OLDAUTHTOK, (const void **)&oldpw);
 	if (res != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_authtok_store: error getting OLDAUTHTOK");
 		return (PAM_SYSTEM_ERR);
 	}
 
-	res = pam_get_item(pamh, PAM_AUTHTOK, (void **)&newpw);
+	res = pam_get_item(pamh, PAM_AUTHTOK, (const void **)&newpw);
 	if (res != PAM_SUCCESS || newpw == NULL) {
 		/*
 		 * A module on the stack has removed PAM_AUTHTOK. We fail
@@ -182,7 +184,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		l.type = ATTR_PASSWD;
 	l.next = NULL;
 
-	res = pam_get_item(pamh, PAM_REPOSITORY, (void **)&auth_rep);
+	res = pam_get_item(pamh, PAM_REPOSITORY, (const void **)&auth_rep);
 	if (res != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_authtok_store: error getting repository");
 		return (PAM_SYSTEM_ERR);

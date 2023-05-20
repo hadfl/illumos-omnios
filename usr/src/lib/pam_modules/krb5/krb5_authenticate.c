@@ -87,27 +87,23 @@ extern krb5_error_code __krb5_get_init_creds_password(krb5_context,
  * pam_sm_authenticate		- Authenticate user
  */
 int
-pam_sm_authenticate(
-	pam_handle_t		*pamh,
-	int 			flags,
-	int			argc,
-	const char		**argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	char			*user = NULL;
-	int			err;
-	int			result = PAM_AUTH_ERR;
+	char *user = NULL;
+	int err;
+	int result = PAM_AUTH_ERR;
 	/* pam.conf options */
-	int			debug = 0;
-	int			warn = 1;
+	int debug = 0;
+	int warn = 1;
 	/* return an error on password expire */
-	int			err_on_exp = 0;
-	int			i;
-	char			*password = NULL;
-	uid_t			pw_uid;
-	krb5_module_data_t	*kmd = NULL;
-	krb5_repository_data_t  *krb5_data = NULL;
-	pam_repository_t	*rep_data = NULL;
-	boolean_t		do_pkinit = FALSE;
+	int err_on_exp = 0;
+	int i;
+	char *password = NULL;
+	uid_t pw_uid;
+	krb5_module_data_t *kmd = NULL;
+	krb5_repository_data_t *krb5_data = NULL;
+	const pam_repository_t *rep_data = NULL;
+	boolean_t do_pkinit = FALSE;
 
 	for (i = 0; i < argc; i++) {
 		if (strcmp(argv[i], "debug") == 0) {
@@ -134,7 +130,7 @@ pam_sm_authenticate(
 	 * pam_get_data could fail if we are being called for the first time
 	 * or if the module is not found, PAM_NO_MODULE_DATA is not an error
 	 */
-	err = pam_get_data(pamh, KRB5_DATA, (const void**)&kmd);
+	err = pam_get_data(pamh, KRB5_DATA, (const void **)&kmd);
 	if (!(err == PAM_SUCCESS || err == PAM_NO_MODULE_DATA))
 		return (PAM_SYSTEM_ERR);
 
@@ -181,7 +177,7 @@ pam_sm_authenticate(
 		}
 	}
 
-	(void) pam_get_item(pamh, PAM_USER, (void**) &user);
+	(void) pam_get_item(pamh, PAM_USER, (const void **)&user);
 
 	if (user == NULL || *user == '\0') {
 		if (do_pkinit) {
@@ -189,8 +185,8 @@ pam_sm_authenticate(
 			 * If doing PKINIT it is okay to prompt for the user
 			 * name.
 			 */
-			if ((err = pam_get_user(pamh, &user, NULL)) !=
-			    PAM_SUCCESS) {
+			if ((err = pam_get_user(pamh, (const char **)&user,
+			    NULL)) != PAM_SUCCESS) {
 				if (debug) {
 					__pam_log(LOG_AUTH | LOG_DEBUG,
 					    "PAM-KRB5 (auth): get user failed: "
@@ -274,7 +270,7 @@ pam_sm_authenticate(
 	 * PAM functions, thats why we wait until this point to
 	 * return.
 	 */
-	(void) pam_get_item(pamh, PAM_REPOSITORY, (void **)&rep_data);
+	(void) pam_get_item(pamh, PAM_REPOSITORY, (const void **)&rep_data);
 
 	if (rep_data != NULL) {
 		if (strcmp(rep_data->type, KRB5_REPOSITORY_NAME) != 0) {
@@ -320,7 +316,7 @@ pam_sm_authenticate(
 		goto out;
 	}
 
-	(void) pam_get_item(pamh, PAM_AUTHTOK, (void **)&password);
+	(void) pam_get_item(pamh, PAM_AUTHTOK, (const void **)&password);
 
 	result = attempt_krb5_auth(pamh, kmd, user, &password, 1);
 
@@ -373,18 +369,12 @@ out:
 }
 
 static krb5_error_code
-pam_krb5_prompter(
-	krb5_context ctx,
-	void *data,
-	/* ARGSUSED1 */
-	const char *name,
-	const char *banner,
-	int num_prompts,
-	krb5_prompt prompts[])
+pam_krb5_prompter(krb5_context ctx, void *data, const char *name,
+    const char *banner, int num_prompts, krb5_prompt prompts[])
 {
 	krb5_error_code rc = KRB5_LIBOS_CANTREADPWD;
 	pam_handle_t *pamh = (pam_handle_t *)data;
-	struct pam_conv	*pam_convp;
+	const struct pam_conv	*pam_convp;
 	struct pam_message *msgs = NULL;
 	struct pam_response *ret_respp = NULL;
 	int i;
@@ -407,7 +397,8 @@ pam_krb5_prompter(
 		}
 	}
 
-	if (pam_get_item(pamh, PAM_CONV, (void **)&pam_convp) != PAM_SUCCESS) {
+	if (pam_get_item(pamh, PAM_CONV, (const void **)&pam_convp) !=
+	    PAM_SUCCESS) {
 		return (rc);
 	}
 	if (pam_convp == NULL) {

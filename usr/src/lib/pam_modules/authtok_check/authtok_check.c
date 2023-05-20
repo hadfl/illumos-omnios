@@ -22,6 +22,7 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  * Copyright (c) 2016 by Delphix. All rights reserved.
+ * Copyright 2023 OmniOS Community Edition (OmniOSce) Association.
  */
 
 #include <sys/types.h>
@@ -150,13 +151,13 @@ get_passwd_defaults(pam_handle_t *pamh, char *user, struct pwdefaults *p)
 	char *q;
 	boolean_t minnonalpha_defined = B_FALSE;
 	pwu_repository_t *pwu_rep;
-	struct pam_repository *pam_rep;
+	const struct pam_repository *pam_rep;
 	attrlist attr[2];
 	int result;
-	char *progname;
-	void	*defp;
+	const char *progname;
+	void *defp;
 
-	(void) pam_get_item(pamh, PAM_SERVICE, (void **)&progname);
+	(void) pam_get_item(pamh, PAM_SERVICE, (const void **)&progname);
 
 	/* Module defaults */
 	p->minlength = MINLENGTH;
@@ -258,7 +259,7 @@ get_passwd_defaults(pam_handle_t *pamh, char *user, struct pwdefaults *p)
 	 * any checks on the user, but let the repository decide instead.
 	 */
 
-	(void) pam_get_item(pamh, PAM_REPOSITORY, (void **)&pam_rep);
+	(void) pam_get_item(pamh, PAM_REPOSITORY, (const void **)&pam_rep);
 	if (pam_rep != NULL) {
 		if ((pwu_rep = calloc(1, sizeof (*pwu_rep))) == NULL)
 			return (PAM_BUF_ERR);
@@ -446,13 +447,13 @@ check_composition(char *pw, struct pwdefaults *pwdef, pam_handle_t *pamh,
 	uint_t maxrepeat = 0;
 	uint_t repeat = 1;
 	int ret = 0;
-	char *progname;
+	const char *progname;
 	char errmsg[256];
 	char lastc = '\0';
 	uint_t significant = pwdef->maxlength;
 	char *w;
 
-	(void) pam_get_item(pamh, PAM_SERVICE, (void **)&progname);
+	(void) pam_get_item(pamh, PAM_SERVICE, (const void **)&progname);
 
 	/* go over the password gathering statistics */
 	for (w = pw; significant != 0 && *w != '\0'; w++, significant--) {
@@ -627,9 +628,10 @@ check_diff(char *pw, char *opw, struct pwdefaults *pwdef, pam_handle_t *pamh,
 	}
 
 	if (diff  < pwdef->mindiff) {
-		char *progname;
+		const char *progname;
 
-		(void) pam_get_item(pamh, PAM_SERVICE, (void **)&progname);
+		(void) pam_get_item(pamh, PAM_SERVICE,
+		    (const void **)&progname);
 
 		error(pamh, flags, dgettext(TEXT_DOMAIN,
 		    "%s: The first %d characters of the old and new passwords "
@@ -652,9 +654,9 @@ check_dictionary(char *pw, struct pwdefaults *pwdef, pam_handle_t *pamh,
 {
 	int crack_ret;
 	int ret;
-	char *progname;
+	const char *progname;
 
-	(void) pam_get_item(pamh, PAM_SERVICE, (void **)&progname);
+	(void) pam_get_item(pamh, PAM_SERVICE, (const void **)&progname);
 
 	/* dictionary check isn't MT-safe */
 	(void) mutex_lock(&dictlock);
@@ -702,17 +704,17 @@ check_dictionary(char *pw, struct pwdefaults *pwdef, pam_handle_t *pamh,
 int
 pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	int	debug = 0;
-	int	retcode = 0;
-	int	force_check = 0;
-	int 	i;
-	size_t	pwlen;
-	char	*usrname;
-	char	*pwbuf, *opwbuf;
+	int debug = 0;
+	int retcode = 0;
+	int force_check = 0;
+	int i;
+	size_t pwlen;
+	char *usrname;
+	char *pwbuf, *opwbuf;
 	pwu_repository_t *pwu_rep = PWU_DEFAULT_REP;
-	pam_repository_t *pwd_rep = NULL;
+	const pam_repository_t *pwd_rep = NULL;
 	struct pwdefaults pwdef;
-	char *progname;
+	const char *progname;
 
 	/* needs to be set before option processing */
 	pwdef.server_policy = B_FALSE;
@@ -734,15 +736,15 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	if ((flags & PAM_PRELIM_CHECK) == 0)
 		return (PAM_IGNORE);
 
-	(void) pam_get_item(pamh, PAM_SERVICE, (void **)&progname);
-	(void) pam_get_item(pamh, PAM_USER, (void **)&usrname);
+	(void) pam_get_item(pamh, PAM_SERVICE, (const void **)&progname);
+	(void) pam_get_item(pamh, PAM_USER, (const void **)&usrname);
 	if (usrname == NULL || *usrname == '\0') {
 		syslog(LOG_ERR, "pam_authtok_check: username name is empty");
 		return (PAM_USER_UNKNOWN);
 	}
 
-	(void) pam_get_item(pamh, PAM_AUTHTOK, (void **)&pwbuf);
-	(void) pam_get_item(pamh, PAM_OLDAUTHTOK, (void **)&opwbuf);
+	(void) pam_get_item(pamh, PAM_AUTHTOK, (const void **)&pwbuf);
+	(void) pam_get_item(pamh, PAM_OLDAUTHTOK, (const void **)&opwbuf);
 	if (pwbuf == NULL)
 		return (PAM_AUTHTOK_ERR);
 
@@ -843,7 +845,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	}
 
 	/* Check if new password is in history list. */
-	(void) pam_get_item(pamh, PAM_REPOSITORY, (void **)&pwd_rep);
+	(void) pam_get_item(pamh, PAM_REPOSITORY, (const void **)&pwd_rep);
 	if (pwd_rep != NULL) {
 		if ((pwu_rep = calloc(1, sizeof (*pwu_rep))) == NULL)
 			return (PAM_BUF_ERR);

@@ -932,7 +932,7 @@ static int
 verify_passwd(void)
 {
 	int error;
-	char *user;
+	const char *user;
 	int flag = (Passreqflag ? PAM_DISALLOW_NULL_AUTHTOK : 0);
 
 	/*
@@ -941,7 +941,7 @@ verify_passwd(void)
 	error = pam_authenticate(pamh, flag);
 
 	/* get the user_name from the pam handle */
-	(void) pam_get_item(pamh, PAM_USER, (void**)&user);
+	(void) pam_get_item(pamh, PAM_USER, (const void **)&user);
 
 	if (user == NULL || *user == '\0')
 		return (PAM_SYSTEM_ERR);
@@ -1775,14 +1775,16 @@ chdir_to_dir_user(void)
 static void
 login_authenticate(void)
 {
-	char *user;
+	const char *user;
 	int err;
 	int login_successful = 0;
 
 	do {
 		/* if scheme broken, then nothing to do but quit */
-		if (pam_get_item(pamh, PAM_USER, (void **)&user) != PAM_SUCCESS)
+		if (pam_get_item(pamh, PAM_USER, (const void **)&user) !=
+		    PAM_SUCCESS) {
 			exit(1);
+		}
 
 		/*
 		 * only get name from utility if it is not already
@@ -2010,14 +2012,14 @@ adjust_nice(void)
 static void
 update_utmpx_entry(int sublogin)
 {
-	int	err;
-	char	*user;
-	static char	*errmsg	= "No utmpx entry. "
+	int err;
+	const char *user;
+	static char *errmsg = "No utmpx entry. "
 	    "You must exec \"login\" from the lowest level \"shell\".";
-	int	tmplen;
-	struct utmpx  *u = (struct utmpx *)0;
-	struct utmpx  utmpx;
-	char	*ttyntail;
+	int tmplen;
+	struct utmpx *u = (struct utmpx *)NULL;
+	struct utmpx utmpx;
+	char *ttyntail;
 
 	/*
 	 * If we're not a sublogin then
@@ -2033,7 +2035,7 @@ update_utmpx_entry(int sublogin)
 		login_exit(1);
 	}
 
-	if ((err = pam_get_item(pamh, PAM_USER, (void **) &user)) !=
+	if ((err = pam_get_item(pamh, PAM_USER, (const void **)&user)) !=
 	    PAM_SUCCESS) {
 		audit_error = ADT_FAIL_PAM + err;
 		login_exit(1);

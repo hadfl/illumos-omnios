@@ -19,7 +19,7 @@ pam_set_item, pam_get_item \- authentication information routines for PAM
 .LP
 .nf
 \fBint\fR \fBpam_get_item\fR(\fBconst pam_handle_t *\fR\fIpamh\fR, \fBint\fR \fIitem_type\fR,
-     \fBvoid **\fR\fIitem\fR);
+     \fBconst void **\fR\fIitem\fR);
 .fi
 
 .SH DESCRIPTION

@@ -21,6 +21,8 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ *
+ * Copyright 2023 OmniOS Community Edition (OmniOSce) Association.
  */
 
 #include <kadm5/admin.h>
@@ -299,22 +301,17 @@ exit:
  *      auth would have failed
  */
 int
-pam_sm_acct_mgmt(
-	pam_handle_t *pamh,
-	int	flags,
-	int	argc,
-	const char **argv)
-
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	char *user = NULL;
 	char *userdata = NULL;
 	int err;
 	int i;
 	krb5_module_data_t *kmd = NULL;
-	char    messages[PAM_MAX_NUM_MSG][PAM_MAX_MSG_SIZE];
+	char messages[PAM_MAX_NUM_MSG][PAM_MAX_MSG_SIZE];
 	int debug = 0;  /* pam.conf entry option */
 	int nowarn = 0; /* pam.conf entry option, no expire warnings */
-	pam_repository_t	*rep_data = NULL;
+	const pam_repository_t *rep_data = NULL;
 
 	for (i = 0; i < argc; i++) {
 		if (strcasecmp(argv[i], "debug") == 0)
@@ -334,7 +331,7 @@ pam_sm_acct_mgmt(
 		    "PAM-KRB5 (acct): debug=%d, nowarn=%d",
 		    debug, nowarn);
 
-	(void) pam_get_item(pamh, PAM_REPOSITORY, (void **)&rep_data);
+	(void) pam_get_item(pamh, PAM_REPOSITORY, (const void **)&rep_data);
 
 	if (rep_data != NULL) {
 		/*
@@ -353,7 +350,7 @@ pam_sm_acct_mgmt(
 
 
 	/* get user name */
-	(void) pam_get_item(pamh, PAM_USER, (void **) &user);
+	(void) pam_get_item(pamh, PAM_USER, (const void **)&user);
 
 	if (user == NULL || *user == '\0') {
 		err = PAM_USER_UNKNOWN;
