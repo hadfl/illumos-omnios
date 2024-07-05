@@ -21,6 +21,7 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2024 OmniOS Community Edition (OmniOSce) Association.
  */
 
 #include <stdio.h>
@@ -41,12 +42,13 @@
 
 #include "passwdutil.h"
 
-int nis_getattr(char *name, attrlist *item, pwu_repository_t *rep);
-int nis_getpwnam(char *name, attrlist *items, pwu_repository_t *rep,
+int nis_getattr(const char *name, attrlist *item, pwu_repository_t *rep);
+int nis_getpwnam(const char *name, attrlist *items, pwu_repository_t *rep,
     void **buf);
 int nis_update(attrlist *items, pwu_repository_t *rep, void *buf);
-int nis_putpwnam(char *name, char *oldpw, pwu_repository_t *rep, void *buf);
-int nis_user_to_authenticate(char *user, pwu_repository_t *rep,
+int nis_putpwnam(const char *name, const char *oldpw, pwu_repository_t *rep,
+    void *buf);
+int nis_user_to_authenticate(const char *user, pwu_repository_t *rep,
 	char **auth_user, int *privileged);
 
 /*
@@ -122,7 +124,7 @@ nis_to_pwd(char *nis, struct passwd *pwd)
  */
 /*ARGSUSED*/
 int
-nis_user_to_authenticate(char *user, pwu_repository_t *rep,
+nis_user_to_authenticate(const char *user, pwu_repository_t *rep,
 	char **auth_user, int *privileged)
 {
 	nisbuf_t *buf = NULL;
@@ -188,7 +190,7 @@ nis_user_to_authenticate(char *user, pwu_repository_t *rep,
  * get account attributes specified in 'items'
  */
 int
-nis_getattr(char *name, attrlist *items, pwu_repository_t *rep)
+nis_getattr(const char *name, attrlist *items, pwu_repository_t *rep)
 {
 	nisbuf_t *nisbuf = NULL;
 	struct passwd *pw;
@@ -281,11 +283,12 @@ nis_getattr(char *name, attrlist *items, pwu_repository_t *rep)
  */
 /*ARGSUSED*/
 int
-nis_getpwnam(char *name, attrlist *items, pwu_repository_t *rep,
+nis_getpwnam(const char *name, attrlist *items, pwu_repository_t *rep,
     void **buf)
 {
 	nisbuf_t *nisbuf;
 	int nisresult;
+	char *ncname;
 
 	nisbuf = calloc(sizeof (*nisbuf), 1);
 	if (nisbuf == NULL)
@@ -321,16 +324,26 @@ nis_getpwnam(char *name, attrlist *items, pwu_repository_t *rep,
 		return (PWU_SERVER_ERROR);
 	}
 
-	nisresult = yp_match(nisbuf->domain, "passwd.byname", name,
-	    strlen(name), &(nisbuf->scratch),
-	    &(nisbuf->scratchlen));
-	if (nisresult != 0) {
-		(void) free(nisbuf->pwd);
-		if (nisbuf->scratch)
-			(void) free(nisbuf->scratch);
+	ncname = strdup(name);
+	if (ncname == NULL) {
 		if (nisbuf->master)
-			(void) free(nisbuf->master);
-		(void) free(nisbuf);
+			free(nisbuf->master);
+		free(nisbuf->pwd);
+		free(nisbuf);
+		return (PWU_NOMEM);
+	}
+
+	nisresult = yp_match(nisbuf->domain, "passwd.byname", ncname,
+	    strlen(ncname), &(nisbuf->scratch),
+	    &(nisbuf->scratchlen));
+	free(ncname);
+	if (nisresult != 0) {
+		free(nisbuf->pwd);
+		if (nisbuf->scratch)
+			free(nisbuf->scratch);
+		if (nisbuf->master)
+			free(nisbuf->master);
+		free(nisbuf);
 		return (PWU_NOT_FOUND);
 	}
 
@@ -453,7 +466,7 @@ nis_update(attrlist *items, pwu_repository_t *rep, void *buf)
  */
 /*ARGSUSED*/
 int
-nis_putpwnam(char *name, char *oldpw, pwu_repository_t *rep,
+nis_putpwnam(const char *name, const char *oldpw, pwu_repository_t *rep,
 	void *buf)
 {
 	nisbuf_t *nisbuf = (nisbuf_t *)buf;
@@ -467,7 +480,9 @@ nis_putpwnam(char *name, char *oldpw, pwu_repository_t *rep,
 	if (strcmp(name, "root") == 0)
 		return (PWU_NOT_FOUND);
 
-	yppasswd.oldpass = oldpw ? oldpw : "";
+	yppasswd.oldpass = strdup(oldpw ? oldpw : "");
+	if (yppasswd.oldpass == NULL)
+		return (PWU_NOMEM);
 	yppasswd.newpw = *nisbuf->pwd;
 
 	/*
@@ -477,6 +492,7 @@ nis_putpwnam(char *name, char *oldpw, pwu_repository_t *rep,
 	if (nis_privileged(nisbuf)) {
 		nconf = getnetconfigent("ticlts");
 		if (!nconf) {
+			free(yppasswd.oldpass);
 			syslog(LOG_ERR,
 			    "passwdutil.so: Couldn't get netconfig entry");
 			return (PWU_SYSTEM_ERROR);
@@ -494,6 +510,7 @@ nis_putpwnam(char *name, char *oldpw, pwu_repository_t *rep,
 	}
 
 	if (client == NULL) {
+		free(yppasswd.oldpass);
 		syslog(LOG_ERR,
 		    "passwdutil.so: couldn't create client to YP master");
 		return (PWU_SERVER_ERROR);
@@ -505,6 +522,7 @@ nis_putpwnam(char *name, char *oldpw, pwu_repository_t *rep,
 	ans = CLNT_CALL(client, YPPASSWDPROC_UPDATE, xdr_yppasswd,
 	    (char *)&yppasswd, xdr_int, (char *)&ok, timeout);
 
+	free(yppasswd.oldpass);
 	if (nisbuf->pwd)
 		(void) free(nisbuf->pwd);
 	if (nisbuf->master)
