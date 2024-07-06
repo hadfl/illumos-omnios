@@ -190,7 +190,8 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	struct project proj, *pproj;
 	int error;
 	char *projname;
-	char *kvs;
+	const char *kvs;
+	char *nckvs;
 	struct passwd pwd;
 	char pwbuf[NSS_BUFLEN_PASSWD];
 	deflim_t deflim;
@@ -417,8 +418,8 @@ adt_done:
 	if (kvs != NULL) {
 		char *tmp, *lasts, *tok;
 
-		kvs = tmp = strdup(kvs);
-		if (kvs == NULL)
+		nckvs = tmp = strdup(kvs);
+		if (nckvs == NULL)
 			return (PAM_BUF_ERR);
 
 		while ((tok = strtok_r(tmp, ";", &lasts)) != NULL) {
@@ -439,9 +440,9 @@ adt_done:
 		pproj = getprojbyname(projname, &proj, (void *)&buf,
 		    PROJECT_BUFSZ);
 	}
-	/* projname points into kvs, so this is the first opportunity to free */
-	if (kvs != NULL)
-		free(kvs);
+	/* projname points into nckvs; this is the first opportunity to free */
+	if (nckvs != NULL)
+		free(nckvs);
 	if (pproj == NULL) {
 		syslog(LOG_AUTH | LOG_ERR,
 		    "pam_unix_cred: no default project for user %s", user);

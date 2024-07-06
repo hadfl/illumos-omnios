@@ -16,7 +16,7 @@
 .\" Copyright (c) 2004, Sun Microsystems, Inc.  All Rights Reserved.
 .\" Copyright 2023 OmniOS Community Edition (OmniOSce) Association.
 .\"
-.Dd July 7, 2024
+.Dd July 6, 2024
 .Dt LIBPAM 3LIB
 .Os
 .Sh NAME

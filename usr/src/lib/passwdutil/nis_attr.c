@@ -317,8 +317,7 @@ nis_getpwnam(const char *name, attrlist *items, pwu_repository_t *rep,
 	if (yp_master(nisbuf->domain, "passwd.byname", &nisbuf->master) != 0) {
 		syslog(LOG_ERR,
 		    "passwdutil.so: can't get master for passwd map");
-		if (nisbuf->master)
-			free(nisbuf->master);
+		free(nisbuf->master);
 		free(nisbuf->pwd);
 		free(nisbuf);
 		return (PWU_SERVER_ERROR);
@@ -326,8 +325,7 @@ nis_getpwnam(const char *name, attrlist *items, pwu_repository_t *rep,
 
 	ncname = strdup(name);
 	if (ncname == NULL) {
-		if (nisbuf->master)
-			free(nisbuf->master);
+		free(nisbuf->master);
 		free(nisbuf->pwd);
 		free(nisbuf);
 		return (PWU_NOMEM);
@@ -339,10 +337,8 @@ nis_getpwnam(const char *name, attrlist *items, pwu_repository_t *rep,
 	free(ncname);
 	if (nisresult != 0) {
 		free(nisbuf->pwd);
-		if (nisbuf->scratch)
-			free(nisbuf->scratch);
-		if (nisbuf->master)
-			free(nisbuf->master);
+		free(nisbuf->scratch);
+		free(nisbuf->master);
 		free(nisbuf);
 		return (PWU_NOT_FOUND);
 	}
@@ -476,12 +472,13 @@ nis_putpwnam(const char *name, const char *oldpw, pwu_repository_t *rep,
 	enum clnt_stat ans;
 	CLIENT *client;
 	struct timeval timeout;
+	char *oldpass;
 
 	if (strcmp(name, "root") == 0)
 		return (PWU_NOT_FOUND);
 
-	yppasswd.oldpass = strdup(oldpw ? oldpw : "");
-	if (yppasswd.oldpass == NULL)
+	oldpass = yppasswd.oldpass = strdup(oldpw != NULL ? oldpw : "");
+	if (oldpass == NULL)
 		return (PWU_NOMEM);
 	yppasswd.newpw = *nisbuf->pwd;
 
@@ -522,7 +519,7 @@ nis_putpwnam(const char *name, const char *oldpw, pwu_repository_t *rep,
 	ans = CLNT_CALL(client, YPPASSWDPROC_UPDATE, xdr_yppasswd,
 	    (char *)&yppasswd, xdr_int, (char *)&ok, timeout);
 
-	free(yppasswd.oldpass);
+	free(oldpass);
 	if (nisbuf->pwd)
 		(void) free(nisbuf->pwd);
 	if (nisbuf->master)
