@@ -555,7 +555,7 @@ enumerate_root_cb(dev_info_t *dip, void *arg)
 	 * vaguely -- allows for plain PCI still.
 	 */
 	if (strcmp(ddi_node_name(dip), "pcie") != 0)
-		return (B_FALSE);
+		return (DDI_WALK_CONTINUE);
 
 	if (ddi_prop_lookup_string(DDI_DEV_T_ANY, dip, DDI_PROP_DONTPASS,
 	    OBP_DEVICETYPE, &devtype) == DDI_SUCCESS) {
@@ -590,7 +590,9 @@ enumerate_root_cb(dev_info_t *dip, void *arg)
 			 * are available to subordinate bridges.
 			 */
 			pci_bus_res[bus_def[0]].dip = dip;
-			pci_bus_res[bus_def[0]].root_addr = (*root_bus_addr)++;
+			pci_bus_res[bus_def[0]].root_addr = *root_bus_addr;
+
+			*root_bus_addr += 1;
 
 			if (create_pcie_root_bus(bus_def[0], dip) == B_FALSE) {
 				/* Undo (most of) what create_pcie_root_bus did, while failing */
