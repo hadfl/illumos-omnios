@@ -1400,8 +1400,9 @@ i_ddi_update_unitintr_unit(unit_intr_t *ui, dev_info_t *dip)
 		}
 
 		/* Use the same interrupt specifier as before. */
-		memcpy(new->ui_v + new->ui_addrcells, ui->ui_v +
-		    ui->ui_addrcells, new->ui_intrcells);
+		memcpy(new->ui_v + new->ui_addrcells,
+		    ui->ui_v + ui->ui_addrcells,
+		    CELLS_1275_TO_BYTES(new->ui_intrcells));
 		i_ddi_free_unitintr(ui);
 		return (new);
 	}
