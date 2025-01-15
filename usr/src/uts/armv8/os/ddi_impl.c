@@ -1557,10 +1557,9 @@ map_interrupt_map(dev_info_t *dip, ddi_intr_handle_impl_t *hdlp)
 #endif
 
 		int par_addr_cells = ddi_prop_get_int(DDI_DEV_T_ANY,
-		    parent, 0, OBP_ADDRESS_CELLS, 2);
+		    parent, DDI_PROP_DONTPASS, OBP_ADDRESS_CELLS, 0);
 		int par_intr_cells = ddi_prop_get_int(DDI_DEV_T_ANY,
-		    parent, DDI_PROP_DONTPASS, OBP_INTERRUPT_CELLS,
-		    1);
+		    parent, DDI_PROP_DONTPASS, OBP_INTERRUPT_CELLS, 1);
 
 		if (memcmp(ui->ui_v, scan,
 		    CELLS_1275_TO_BYTES(ui->ui_nelems)) == 0) {
