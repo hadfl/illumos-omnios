@@ -1525,9 +1525,15 @@ map_interrupt_map(dev_info_t *dip, ddi_intr_handle_impl_t *hdlp)
 	VERIFY((intr_mask_sz == ui->ui_nelems) ||
 	    (intr_mask_sz == 0));
 
+	unit_intr_t *maskedui = i_ddi_alloc_unitintr(ui->ui_addrcells,
+	    ui->ui_intrcells);
+
+	memcpy(maskedui->ui_v, ui->ui_v,
+	    CELLS_1275_TO_BYTES(maskedui->ui_nelems));
+
 	/* Apply the mask if we have one */
 	for (int i = 0; i < intr_mask_sz; i++) {
-		ui->ui_v[i] &= intr_mask[i];
+		maskedui->ui_v[i] &= intr_mask[i];
 	}
 
 	/*
@@ -1561,13 +1567,14 @@ map_interrupt_map(dev_info_t *dip, ddi_intr_handle_impl_t *hdlp)
 		int par_intr_cells = ddi_prop_get_int(DDI_DEV_T_ANY,
 		    parent, DDI_PROP_DONTPASS, OBP_INTERRUPT_CELLS, 1);
 
-		if (memcmp(ui->ui_v, scan,
+		if (memcmp(maskedui->ui_v, scan,
 		    CELLS_1275_TO_BYTES(ui->ui_nelems)) == 0) {
 			/*
 			 * Re-create `ui` in terms of the parent information
 			 * in the table
 			 */
 			i_ddi_free_unitintr(ui);
+			i_ddi_free_unitintr(maskedui);
 			ui = i_ddi_alloc_unitintr(par_addr_cells,
 			    par_intr_cells);
 			memcpy(ui->ui_v, scan + effective_stride,
@@ -1585,6 +1592,7 @@ map_interrupt_map(dev_info_t *dip, ddi_intr_handle_impl_t *hdlp)
 		effective_stride += par_addr_cells + par_intr_cells;
 	}
 
+	i_ddi_free_unitintr(maskedui);
 	ddi_prop_free(intr_map);
 	if (intr_mask != NULL)
 		ddi_prop_free(intr_mask);
