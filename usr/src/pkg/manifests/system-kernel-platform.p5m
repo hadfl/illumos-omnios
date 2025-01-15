@@ -183,7 +183,7 @@ $(i386_ONLY)file path=platform/i86xpv/kernel/tod/$(ARCH64)/xpvtod group=sys \
 dir  path=usr/share/man
 dir  path=usr/share/man/man4d
 link path=usr/share/man/man4d/fdc.4d target=fd.4d
-$(not_aarch64)file path=usr/share/man/man4d/npe.4d
+$(i386_ONLY)file path=usr/share/man/man4d/npe.4d
 $(aarch64_ONLY)file path=usr/share/man/man4d/simple-bus.4d
 dir  path=usr/share/man/man5
 $(i386_ONLY)link path=usr/share/man/man5/isa.5 target=sysbus.5

@@ -292,8 +292,7 @@ typedef struct devinfo_intr {
 
 	ddi_intr_handle_t *devi_intr_handle_p;	/* Hdl for legacy intr APIs */
 
-	/* XXXPCI: Why no sparc? */
-#if defined(__x86) || defined(__aarch64__)
+#if defined(__i386) || defined(__amd64)
 	/* Save the PCI config space handle */
 	ddi_acc_handle_t devi_cfg_handle;
 	int		 devi_cap_ptr;		/* MSI or MSI-X cap pointer */
@@ -347,7 +346,7 @@ void	i_ddi_set_intr_handle(dev_info_t *dip, int inum, ddi_intr_handle_t hdl);
 ddi_intr_msix_t	*i_ddi_get_msix(dev_info_t *dip);
 void	i_ddi_set_msix(dev_info_t *dip, ddi_intr_msix_t *msix_p);
 
-#if defined(__x86) || defined(__aarch64__)
+#if defined(__i386) || defined(__amd64)
 ddi_acc_handle_t	i_ddi_get_pci_config_handle(dev_info_t *dip);
 void	i_ddi_set_pci_config_handle(dev_info_t *dip, ddi_acc_handle_t handle);
 int	i_ddi_get_msi_msix_cap_ptr(dev_info_t *dip);

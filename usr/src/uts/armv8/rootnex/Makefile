@@ -36,9 +36,6 @@ include ../Makefile.armv8
 ALL_TARGET	= $(BINARY)
 INSTALL_TARGET	= $(BINARY) $(ROOTMODULE)
 
-#CERRWARN	+= -_gcc=-Wno-switch
-
-
 .KEEP_STATE:
 
 def:		$(DEF_DEPS)

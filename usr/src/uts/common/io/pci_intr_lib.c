@@ -60,8 +60,6 @@ pci_class_val_t pci_default_pil [] = {
 /*
  * XXX - This is a temporary workaround and it will be removed
  *       after x86 interrupt scalability support.
- *
- * XXXPCI - lol, and, indeed, lmao
  */
 #if defined(__x86)
 	{0x0c0400, 0xffff00, 0x5},	/* Serial Bus, Fibre Channel */
@@ -1181,7 +1179,7 @@ pci_intx_get_ispec(dev_info_t *dip, dev_info_t *rdip, int inum)
 	ASSERT(ispec);
 
 	/* check if the intrspec_pri has been initialized */
-	if (ispec->intrspec_pri == 0) {
+	if (!ispec->intrspec_pri) {
 		if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, rdip,
 		    DDI_PROP_DONTPASS, "interrupt-priorities",
 		    &intpriorities, &num_intpriorities) == DDI_PROP_SUCCESS) {
@@ -1196,10 +1194,10 @@ pci_intx_get_ispec(dev_info_t *dip, dev_info_t *rdip, int inum)
 	}
 
 	/* Get interrupt line value */
-	if (ispec->intrspec_vec == 0) {
+	if (!ispec->intrspec_vec) {
 		if (pci_config_setup(rdip, &cfg_hdl) != DDI_SUCCESS) {
-			DDI_INTR_NEXDBG((CE_CONT, "%s: "
-			    "can't get config handle\n", __func__));
+			DDI_INTR_NEXDBG((CE_CONT, "pci_intx_get_iline: "
+			    "can't get config handle\n"));
 			return ((ddi_intrspec_t)ispec);
 		}
 

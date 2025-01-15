@@ -49,7 +49,6 @@
 #include <sys/prom_plat.h>
 #include <sys/sunndi.h>
 #include <sys/ndi_impldefs.h>
-
 #include <sys/sysmacros.h>
 #include <sys/systeminfo.h>
 #include <sys/utsname.h>
@@ -1116,7 +1115,7 @@ i_ddi_remove_softint(ddi_softint_hdl_impl_t *hdlp)
  * "interrupt-map" here, because we should always have an "#interrupt-cells"
  * on that same node.
  */
-dev_info_t *
+static dev_info_t *
 i_ddi_interrupt_domain(dev_info_t *pdip)
 {
 	dev_info_t *ret = NULL;

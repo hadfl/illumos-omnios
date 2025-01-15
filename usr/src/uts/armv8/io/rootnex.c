@@ -904,7 +904,7 @@ rootnex_map_regspec(ddi_map_req_t *mp, caddr_t *vaddrp)
 	/* Memory space */
 	if (hp != NULL) {
 		/*
-		 * hat layer ignores (XXXPCI: On purpose? on x86? in general?)
+		 * hat layer ignores (XXXRES: On purpose? on x86? in general?)
 		 * hp->ah_acc.devacc_attr_endian_flags.
 		 */
 		switch (hp->ah_acc.devacc_attr_dataorder) {
