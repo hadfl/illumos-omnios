@@ -253,7 +253,6 @@ aarch64_MANFILES=	ahci.4d		\
 			iwi.4d		\
 			iwn.4d		\
 			mega_sas.4d	\
-			npe.4d		\
 			ntxn.4d		\
 			nvme.4d		\
 			pcn.4d		\

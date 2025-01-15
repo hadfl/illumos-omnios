@@ -1245,15 +1245,6 @@ startup_modules(void)
 	if (syspic_init() != 0)
 		halt("Can't initialize syspic");
 
-	/*
-	 * Setup access to PCI-e configuration space
-	 *
-	 * XXXPCI: We have no need to do this anything like so early, and do
-	 * the dance with remapping, do we?
-	 */
-	extern void pcie_cfgspace_init(void); /* XXXPCI: Header */
-	pcie_cfgspace_init();
-
 	if (modload("fs", "specfs") == -1)
 		halt("Can't load specfs");
 
