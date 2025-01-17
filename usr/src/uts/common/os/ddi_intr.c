@@ -82,8 +82,8 @@ ddi_intr_get_supported_types(dev_info_t *dip, int *typesp)
 
 /*
  * ddi_intr_get_nintrs:
- * 	Return as an integer in the integer pointed to by the argument
- * 	*nintrsp*, the number of interrupts the device supports for the
+ *	Return as an integer in the integer pointed to by the argument
+ *	*nintrsp*, the number of interrupts the device supports for the
  *	given interrupt type.
  */
 int
@@ -124,8 +124,8 @@ ddi_intr_get_nintrs(dev_info_t *dip, int type, int *nintrsp)
  *	Bus nexus driver will return availble interrupt count value for
  *	a given interrupt type.
  *
- * 	Return as an integer in the integer pointed to by the argument
- * 	*navailp*, the number of interrupts currently available for the
+ *	Return as an integer in the integer pointed to by the argument
+ *	*navailp*, the number of interrupts currently available for the
  *	given interrupt type.
  */
 int
@@ -285,7 +285,7 @@ ddi_intr_alloc(dev_info_t *dip, ddi_intr_handle_t *h_array, int type, int inum,
 
 	/*
 	 * Take the lock, even though this handle is impossible to share, so
-	 * that we make can global assertions about locking
+	 * that we can make global assertions about locking.
 	 */
 	rw_init(&tmp_hdl.ih_rwlock, NULL, RW_DRIVER, NULL);
 	rw_enter(&tmp_hdl.ih_rwlock, RW_WRITER);
