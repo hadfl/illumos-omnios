@@ -75,6 +75,8 @@ static void impl_bus_reprobe(void);
 
 static void i_ddi_free_unitintr(unit_intr_t *);
 
+static void i_ddi_free_unitintr(unit_intr_t *);
+
 /*
  * Platform drivers on this platform
  */
@@ -1116,7 +1118,7 @@ i_ddi_remove_softint(ddi_softint_hdl_impl_t *hdlp)
  * "interrupt-map" here, because we should always have an "#interrupt-cells"
  * on that same node.
  */
-dev_info_t *
+static dev_info_t *
 i_ddi_interrupt_domain(dev_info_t *pdip)
 {
 	dev_info_t *ret = NULL;
@@ -1154,8 +1156,8 @@ i_ddi_interrupt_domain(dev_info_t *pdip)
 }
 
 /*
- * i_ddi_get_interrupt - Get the interrupt property from the specified device for a
- * given interrupt. Note that this function is called only for the FIXED
+ * i_ddi_get_interrupt - Get the interrupt property from the specified device
+ * for a given interrupt. Note that this function is called only for the FIXED
  * interrupt type.
  *
  * This is enough to fully specify an interrupt, but is only intelligible by
@@ -1207,11 +1209,12 @@ i_ddi_get_intr_pri(dev_info_t *dip, uint_t inumber)
 {
 	int	*intr_prio_p;
 	uint_t	intr_prio_num;
-	uint32_t	pri = 0;
+	/* XXXARM: hard-code the default interrupt-priorities property to 5 */
+	uint32_t	pri = 5;
 
 	/*
-	 * Use the "interrupt-priorities" property to determine the
-	 * the pil/ipl for the interrupt handler.
+	 * Use the "interrupt-priorities" property to determine the pil/ipl
+	 * for the interrupt handler.
 	 */
 	if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, dip, DDI_PROP_DONTPASS,
 	    OBP_INTERRUPT_PRIORITIES, &intr_prio_p,
@@ -1536,8 +1539,8 @@ map_interrupt_map(dev_info_t *dip, ddi_intr_handle_impl_t *hdlp)
 	 */
 	int effective_stride = 0;
 	for (int *scan = intr_map;
-	     scan < intr_map + intr_map_sz;
-	     scan += effective_stride) {
+	    scan < intr_map + intr_map_sz;
+	    scan += effective_stride) {
 		dev_info_t *parent;
 
 		/*
@@ -1557,7 +1560,7 @@ map_interrupt_map(dev_info_t *dip, ddi_intr_handle_impl_t *hdlp)
 #endif
 
 		int par_addr_cells = ddi_prop_get_int(DDI_DEV_T_ANY,
-		    parent, 0, OBP_ADDRESS_CELLS, 2);
+		    parent, DDI_PROP_DONTPASS, OBP_ADDRESS_CELLS, 0);
 		int par_intr_cells = ddi_prop_get_int(DDI_DEV_T_ANY,
 		    parent, DDI_PROP_DONTPASS, OBP_INTERRUPT_CELLS,
 		    1);
@@ -1585,6 +1588,12 @@ map_interrupt_map(dev_info_t *dip, ddi_intr_handle_impl_t *hdlp)
 
 		effective_stride += par_addr_cells + par_intr_cells;
 	}
+
+	/*
+	 * If there's an interrupt-map and we have not found our entry in it,
+	 * something is very wrong and further progress will only be worse
+	 */
+	dev_err(dip, CE_PANIC, "interrupt-map entry not found");
 
 	ddi_prop_free(intr_map);
 	if (intr_mask != NULL)
@@ -1624,7 +1633,7 @@ map_interrupt(dev_info_t *dip, ddi_intr_handle_impl_t *hdlp)
 
 	dev_info_t *par = NULL;
 
-        if (ddi_prop_exists(DDI_DEV_T_ANY, dip, DDI_PROP_DONTPASS,
+	if (ddi_prop_exists(DDI_DEV_T_ANY, dip, DDI_PROP_DONTPASS,
 	    OBP_INTERRUPT_MAP)) {
 		par = map_interrupt_map(dip, hdlp);
 	} else {
@@ -3700,8 +3709,6 @@ static struct bus_probe {
 	struct bus_probe *next;
 	void (*probe)(int);
 } *bus_probes;
-void
-impl_bus_add_probe(void (*func)(int));
 
 /*
  * impl_bus_initialprobe
