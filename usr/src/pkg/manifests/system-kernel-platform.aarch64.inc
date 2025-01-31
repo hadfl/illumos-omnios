@@ -40,13 +40,13 @@ file path=platform/armv8/kernel/drv/$(ARCH)/gictwo
 file path=platform/armv8/kernel/drv/$(ARCH)/ns16550a
 file path=platform/armv8/kernel/drv/$(ARCH)/rootnex
 file path=platform/armv8/kernel/drv/$(ARCH)/simple-bus
-file path=platform/armv8/kernel/drv/$(ARCH64)/arm_gtmr
-file path=platform/armv8/kernel/drv/$(ARCH64)/npe
+file path=platform/armv8/kernel/drv/$(ARCH)/arm_gtmr
+file path=platform/armv8/kernel/drv/$(ARCH)/npe
 file path=platform/armv8/kernel/drv/ns16550a.conf
 dir  path=platform/armv8/kernel/misc
-dir  path=platform/armv8/kernel/misc/$(ARCH64)
-file path=platform/armv8/kernel/misc/$(ARCH64)/pci_prd mode=0755
-file path=platform/armv8/kernel/misc/$(ARCH64)/pcie mode=0755
+dir  path=platform/armv8/kernel/misc/$(ARCH)
+file path=platform/armv8/kernel/misc/$(ARCH)/pci_prd mode=0755
+file path=platform/armv8/kernel/misc/$(ARCH)/pcie mode=0755
 file path=usr/share/man/man4d/npe.4d
 file path=usr/share/man/man4d/simple-bus.4d
 driver name=arm_gtmr alias=arm,armv8-timer
