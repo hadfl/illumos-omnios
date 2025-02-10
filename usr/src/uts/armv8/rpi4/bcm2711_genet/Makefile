@@ -31,10 +31,10 @@ UTSBASE	= ../../..
 #
 #	Define the module and object file sets.
 #
-MODULE		= genet
-OBJECTS		= $(GENET_OBJS:%=$(OBJS_DIR)/%)
+MODULE		= bcm2711_genet
+OBJECTS		= $(BCM2711_GENET_OBJS:%=$(OBJS_DIR)/%)
 ROOTMODULE	= $(ROOT_RPI4_DRV_DIR)/$(MODULE)
-CONF_SRCDIR	= $(UTSBASE)/armv8/rpi4/io/$(MODULE)/
+CONF_SRCDIR	= $(UTSBASE)/armv8/rpi4/io/$(MODULE)
 
 #
 #	Include common rules.
@@ -52,16 +52,6 @@ INSTALL_TARGET	= $(BINARY) $(ROOTMODULE) $(ROOT_CONFFILE)
 #
 ALL_BUILDS	= $(ALL_BUILDSONLY64)
 DEF_BUILDS	= $(DEF_BUILDSONLY64)
-
-#
-# For now, disable these warnings; maintainers should endeavor
-# to investigate and remove these for maximum coverage.
-# Please do not carry these forward to new Makefiles.
-#
-CFLAGS += $(CCVERBOSE)
-
-CERRWARN += -_gcc=-Wno-unused-function
-CERRWARN += -_gcc=-Wno-unused-variable
 
 #	Dependency
 LDFLAGS += -Nmisc/mac -Nmisc/mii

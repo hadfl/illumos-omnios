@@ -20,7 +20,17 @@
 #
 
 #
-# Copyright 2017 Hayashi Naoyuki
+# Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# Copyright 2025 Michael van der Westhuizen
+#
+
+#
+#	This makefile drives the production of the armv8 virt default
+#	platform module.
+#
+#	armv8 implementation architecture dependent
 #
 
 #
@@ -31,9 +41,12 @@ UTSBASE	= ../../..
 #
 #	Define the module and object file sets.
 #
-MODULE		= todpl031
-OBJECTS		= $(TODPL031_OBJS:%=$(OBJS_DIR)/%)
-ROOTMODULE	= $(ROOT_VIRT_TOD_DIR)/$(MODULE)
+MODULE		= platmod
+OBJECTS		= $(VIRT_PLATMOD_OBJS:%=$(OBJS_DIR)/%)
+ROOTMODULE	= $(ROOT_VIRT_MISC_DIR)/$(MODULE)
+
+PLAT_DIR	= .
+HERE		= ../platmod
 
 #
 #	Include common rules.
@@ -41,9 +54,14 @@ ROOTMODULE	= $(ROOT_VIRT_TOD_DIR)/$(MODULE)
 include $(UTSBASE)/armv8/virt/Makefile.virt
 
 #
-#       Define targets
+#	Override defaults
 #
-ALL_TARGET	= $(BINARY)
+CLEANFILES	+= $(PLATLIB) $(SYM_MOD)
+
+#
+#	Define targets
+#
+ALL_TARGET	= $(SYM_MOD)
 INSTALL_TARGET	= $(BINARY) $(ROOTMODULE)
 
 #
@@ -52,11 +70,6 @@ INSTALL_TARGET	= $(BINARY) $(ROOTMODULE)
 ALL_BUILDS	= $(ALL_BUILDSONLY64)
 DEF_BUILDS	= $(DEF_BUILDSONLY64)
 
-#
-# For now, disable these warnings; maintainers should endeavor
-# to investigate and remove these for maximum coverage.
-# Please do not carry these forward to new Makefiles.
-#
 CFLAGS += $(CCVERBOSE)
 
 #
@@ -64,9 +77,9 @@ CFLAGS += $(CCVERBOSE)
 #
 .KEEP_STATE:
 
-all:		$(ALL_DEPS)
-
 def:		$(DEF_DEPS)
+
+all:		$(ALL_DEPS)
 
 clean:		$(CLEAN_DEPS)
 
@@ -74,6 +87,16 @@ clobber:	$(CLOBBER_DEPS)
 
 install:	$(INSTALL_DEPS)
 
+check:
+
+
+$(PLATLIB):	$(OBJECTS)
+	$(BUILD.SO) $(OBJECTS)
+
+$(SYM_MOD):	$(UNIX_O) $(PLATLIB)
+	@echo "resolving symbols against unix.o"
+	@(cd $(UNIX_DIR); pwd; \
+	    PLAT_DIR=$(HERE) SYM_MOD=$(HERE)/$(SYM_MOD) $(MAKE) symcheck)
 
 #
 #	Include common targets.
