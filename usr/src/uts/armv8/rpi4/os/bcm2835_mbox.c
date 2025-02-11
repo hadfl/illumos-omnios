@@ -33,6 +33,7 @@
 #include <sys/ddi_impldefs.h>
 #include <sys/ddi_implfuncs.h>
 #include <sys/ddi_subrdefs.h>
+#include <sys/smp_impldefs.h>
 #include <sys/bcm2835_mbox.h>
 #include <sys/bcm2835_mboxreg.h>
 #include <sys/bcm2835_vcprop.h>
@@ -59,7 +60,13 @@ static ddi_dma_attr_t dma_mem_attr;
 
 static caddr_t mbox_buffer;
 static paddr_t mbox_buffer_phys;
-static uintptr_t mbox_base;
+
+typedef struct {
+	void	*mbox_base;
+	size_t	mbox_size;
+} mbox_conf_t;
+
+static mbox_conf_t mbox_conf;
 
 static int
 bcm2835_find_mbox(dev_info_t *dip, void *arg)
@@ -77,10 +84,13 @@ bcm2835_find_mbox(dev_info_t *dip, void *arg)
 static void
 bcm2835_mbox_init(void)
 {
-	uint64_t base;
 	int err;
 
 	ASSERT(MUTEX_HELD(&mbox_lock));
+
+	/* Already configured */
+	if (mbox_conf.mbox_base != 0)
+		return;
 
 	dev_info_t *dip = NULL;
 	ddi_walk_devs(ddi_root_node(), bcm2835_find_mbox, &dip);
@@ -90,11 +100,24 @@ bcm2835_mbox_init(void)
 
 	pnode_t node = ddi_get_nodeid(dip);
 	ASSERT(node > 0);
-	if (prom_get_reg_address(node, 0, &base) != 0) {
+
+	uint64_t mbox_base, mbox_size;
+	if (prom_get_reg_address(node, 0, &mbox_base) != 0) {
 		cmn_err(CE_PANIC,
 		    "prom_get_reg_address failed for mbox register");
 	}
-	mbox_base = SEGKPM_BASE + base;
+
+	if (prom_get_reg_size(node, 0, &mbox_size) != 0) {
+		cmn_err(CE_PANIC,
+		    "prom_get_reg_size failed for mbox register");
+	}
+
+	caddr_t addr = psm_map_phys(mbox_base, mbox_size, PROT_READ|PROT_WRITE);
+	if (addr == NULL)
+		cmn_err(CE_PANIC, "failed to map mbox");
+
+	mbox_conf.mbox_base = addr;
+	mbox_conf.mbox_size = mbox_size;
 
 	int rv;
 	rv = i_ddi_update_dma_attr(dip, &dma_attr);
@@ -120,13 +143,13 @@ bcm2835_mbox_init(void)
 static uint32_t
 bcm2835_mbox_reg_read(uint32_t offset)
 {
-	return (*(volatile uint32_t *)(mbox_base + offset));
+	return (*(volatile uint32_t *)(mbox_conf.mbox_base + offset));
 }
 
 static void
 bcm2835_mbox_reg_write(uint32_t offset, uint32_t val)
 {
-	*(volatile uint32_t *)(mbox_base + offset) = val;
+	*(volatile uint32_t *)(mbox_conf.mbox_base + offset) = val;
 }
 
 static uint32_t
