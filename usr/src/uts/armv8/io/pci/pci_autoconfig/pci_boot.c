@@ -1835,10 +1835,13 @@ populate_bus_res(uchar_t bus)
 	}
 
 	/*
-	 * Create 'ranges' property here before any resources are
-	 * removed from the resource lists
+	 * We don't create a ranges property, as we already have one -- the
+	 * one the memlists were programmed from.
+	 *
+	 * More importantly, if we create our own -- even based on this data
+	 * -- we'll lose the mapping between address spaces that the incoming "ranges"
+	 * implies.
 	 */
-	add_ranges_prop(bus, B_FALSE);
 }
 
 /*
