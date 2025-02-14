@@ -312,6 +312,40 @@ static ndi_event_set_t npe_ndi_events = {
 	NDI_EVENTS_REV1, ARRAY_SIZE(npe_ndi_event_defs), npe_ndi_event_defs
 };
 
+/*
+ * Update the ranges in the DDI PPD with the information only we have -- the
+ * bustype information that must be decoded from a pci-binding 3-word address.
+ *
+ * Unfortunately, this means we know things about the "parent-private" data we
+ * should not.  But otherwise the parent knows things that we should not.
+ *
+ * We have to do this or `i_ddi_apply_range()` will refuse to map between
+ * address spaces, which is critical to supporting "I/O space" access on
+ * aarch64.
+ *
+ * XXXPCI: This sucks
+ */
+static int
+npe_update_ppd_ranges(dev_info_t *dip)
+{
+	pci_ranges_t *ranges;
+	uint_t rangesln;
+
+	if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, dip, DDI_PROP_DONTPASS,
+	    OBP_RANGES, (int **)&ranges, &rangesln) != DDI_SUCCESS) {
+		return (DDI_FAILURE);
+	}
+
+	for (int i = 0; i < i_ddi_pd_getnrng(dip); i++) {
+		if ((ranges[i].child_high & PCI_REG_ADDR_M) == PCI_ADDR_IO) {
+			i_ddi_pd_getrng(dip, i)->rng_cbustype = 1;
+		}
+	}
+
+	ddi_prop_free(ranges);
+	return (DDI_SUCCESS);
+}
+
 /*ARGSUSED*/
 static int
 npe_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
@@ -349,6 +383,13 @@ npe_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 	    "pciex") != DDI_PROP_SUCCESS) {
 		cmn_err(CE_WARN, "npe:  'device_type' prop create failed");
 	}
+
+
+	/*
+	 * Update the parent-private range data
+	 * XXXPCI: This sucks, see the implementation for a description of why.
+	 */
+	npe_update_ppd_ranges(devi);
 
 	if (ddi_soft_state_zalloc(npe_statep, instance) == DDI_SUCCESS)
 		pcip = ddi_get_soft_state(npe_statep, instance);
