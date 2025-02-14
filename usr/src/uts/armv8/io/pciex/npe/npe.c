@@ -550,7 +550,7 @@ npe_bus_map(dev_info_t *dip, dev_info_t *rdip, ddi_map_req_t *mp,
 	ddi_map_req_t	mr;
 	pci_regspec_t	pci_reg;
 	pci_regspec_t	*pci_rp;
-	struct regspec64 reg;
+	struct regspec	reg;
 	pci_acc_cfblk_t	*cfp;
 	int		retval;
 	int64_t		*ecfginfo;
@@ -673,6 +673,9 @@ npe_bus_map(dev_info_t *dip, dev_info_t *rdip, ddi_map_req_t *mp,
 
 		mp->map_obj.rp = (struct regspec *)&reg;
 		mp->map_flags |= DDI_MF_EXT_REGSPEC;
+
+		i_ddi_apply_range(dip, rdip, &reg);
+
 		retval = ddi_map(dip, mp, (off_t)0, (off_t)0, vaddrp);
 		if (DDI_FM_ACC_ERR_CAP(ddi_fm_capable(rdip)) &&
 		    mp->map_handlep->ah_acc.devacc_attr_access !=
@@ -819,6 +822,9 @@ npe_bus_map(dev_info_t *dip, dev_info_t *rdip, ddi_map_req_t *mp,
 
 	mp->map_obj.rp = (struct regspec *)&reg;
 	mp->map_flags |= DDI_MF_EXT_REGSPEC;
+
+	i_ddi_apply_range(dip, rdip, &reg);
+
 	retval = ddi_map(dip, mp, (off_t)0, (off_t)0, vaddrp);
 	if (retval == DDI_SUCCESS) {
 		/*
