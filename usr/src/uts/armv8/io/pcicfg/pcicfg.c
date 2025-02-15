@@ -2618,7 +2618,7 @@ pcicfg_sum_resources(dev_info_t *dip, void *hdl)
 static int
 pcicfg_free_bridge_resources(dev_info_t *dip)
 {
-	ppb_ranges_t		*ranges;
+	ppb_ranges_t		*ranges = NULL;
 	int			*bus;
 	uint_t			k;
 	uint_t			length = 0;
