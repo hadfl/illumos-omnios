@@ -1245,15 +1245,6 @@ startup_modules(void)
 	if (syspic_init() != 0)
 		halt("Can't initialize syspic");
 
-	/*
-	 * Setup access to PCI-e configuration space
-	 *
-	 * XXXPCI: We have no need to do this anything like so early, and do
-	 * the dance with remapping, do we?
-	 */
-	extern void pcie_cfgspace_init(void); /* XXXPCI: Header */
-	pcie_cfgspace_init();
-
 	if (modload("fs", "specfs") == -1)
 		halt("Can't load specfs");
 
@@ -1286,6 +1277,16 @@ startup_modules(void)
 			*cp++ = d[cnt] + '0';
 		*cp = 0;
 	}
+
+
+	/*
+	 * Get access to PCIe configuration space
+	 *
+	 * This is as late as this can possibly happen (we need cfgspace to
+	 * build the device tree).
+	 */
+	extern void pcie_cfgspace_init(void); /* XXXPCI: Header */
+	pcie_cfgspace_init();
 
 	/*
 	 * Create a kernel device tree. First, create rootnex and
