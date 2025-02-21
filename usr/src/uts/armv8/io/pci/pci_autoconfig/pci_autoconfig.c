@@ -66,11 +66,9 @@ void
 pci_enumerate(int reprogram)
 {
 	extern void pci_setup_tree(void);
-	extern void pci_reprogram(void);
 	extern int pci_boot_maxbus;
 
 	if (reprogram) {
-		pci_reprogram();
 		return;
 	} else {
 		pci_boot_maxbus = pci_prd_max_bus();
