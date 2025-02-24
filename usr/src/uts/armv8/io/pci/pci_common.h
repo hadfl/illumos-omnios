@@ -56,43 +56,6 @@ typedef struct pci_state {
 } pci_state_t;
 
 /*
- * These are the access routines.
- * The pci_bus_map sets the handle to point to these in pci(4D).
- * The npe_bus_map sets the handle to point to these in npe(4D).
- */
-uint8_t		pci_config_rd8(ddi_acc_impl_t *hdlp, uint8_t *addr);
-uint16_t	pci_config_rd16(ddi_acc_impl_t *hdlp, uint16_t *addr);
-uint32_t	pci_config_rd32(ddi_acc_impl_t *hdlp, uint32_t *addr);
-uint64_t	pci_config_rd64(ddi_acc_impl_t *hdlp, uint64_t *addr);
-
-void		pci_config_wr8(ddi_acc_impl_t *hdlp, uint8_t *addr,
-		    uint8_t value);
-void		pci_config_wr16(ddi_acc_impl_t *hdlp, uint16_t *addr,
-		    uint16_t value);
-void		pci_config_wr32(ddi_acc_impl_t *hdlp, uint32_t *addr,
-		    uint32_t value);
-void		pci_config_wr64(ddi_acc_impl_t *hdlp, uint64_t *addr,
-		    uint64_t value);
-
-void		pci_config_rep_rd8(ddi_acc_impl_t *hdlp, uint8_t *host_addr,
-		    uint8_t *dev_addr, size_t repcount, uint_t flags);
-void		pci_config_rep_rd16(ddi_acc_impl_t *hdlp, uint16_t *host_addr,
-		    uint16_t *dev_addr, size_t repcount, uint_t flags);
-void		pci_config_rep_rd32(ddi_acc_impl_t *hdlp, uint32_t *host_addr,
-		    uint32_t *dev_addr, size_t repcount, uint_t flags);
-void		pci_config_rep_rd64(ddi_acc_impl_t *hdlp, uint64_t *host_addr,
-		    uint64_t *dev_addr, size_t repcount, uint_t flags);
-
-void		pci_config_rep_wr8(ddi_acc_impl_t *hdlp, uint8_t *host_addr,
-		    uint8_t *dev_addr, size_t repcount, uint_t flags);
-void		pci_config_rep_wr16(ddi_acc_impl_t *hdlp, uint16_t *host_addr,
-		    uint16_t *dev_addr, size_t repcount, uint_t flags);
-void		pci_config_rep_wr32(ddi_acc_impl_t *hdlp, uint32_t *host_addr,
-		    uint32_t *dev_addr, size_t repcount, uint_t flags);
-void		pci_config_rep_wr64(ddi_acc_impl_t *hdlp, uint64_t *host_addr,
-		    uint64_t *dev_addr, size_t repcount, uint_t flags);
-
-/*
  * PCI tool related declarations
  */
 int	pci_common_ioctl(dev_info_t *dip, dev_t dev, int cmd,

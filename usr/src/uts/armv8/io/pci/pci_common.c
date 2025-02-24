@@ -56,6 +56,38 @@ static int	pci_get_priority(dev_info_t *, ddi_intr_handle_impl_t *, int *);
 static void	pci_alloc_intr_fixed(dev_info_t *, dev_info_t *,
 		    ddi_intr_handle_impl_t *, void *);
 
+static uint8_t	pci_config_rd8(ddi_acc_impl_t *hdlp, uint8_t *addr);
+static uint16_t	pci_config_rd16(ddi_acc_impl_t *hdlp, uint16_t *addr);
+static uint32_t	pci_config_rd32(ddi_acc_impl_t *hdlp, uint32_t *addr);
+static uint64_t	pci_config_rd64(ddi_acc_impl_t *hdlp, uint64_t *addr);
+
+static void	pci_config_wr8(ddi_acc_impl_t *hdlp, uint8_t *addr,
+		    uint8_t value);
+static void	pci_config_wr16(ddi_acc_impl_t *hdlp, uint16_t *addr,
+		    uint16_t value);
+static void	pci_config_wr32(ddi_acc_impl_t *hdlp, uint32_t *addr,
+		    uint32_t value);
+static void	pci_config_wr64(ddi_acc_impl_t *hdlp, uint64_t *addr,
+		    uint64_t value);
+
+static void	pci_config_rep_rd8(ddi_acc_impl_t *hdlp, uint8_t *host_addr,
+		    uint8_t *dev_addr, size_t repcount, uint_t flags);
+static void	pci_config_rep_rd16(ddi_acc_impl_t *hdlp, uint16_t *host_addr,
+		    uint16_t *dev_addr, size_t repcount, uint_t flags);
+static void	pci_config_rep_rd32(ddi_acc_impl_t *hdlp, uint32_t *host_addr,
+		    uint32_t *dev_addr, size_t repcount, uint_t flags);
+static void	pci_config_rep_rd64(ddi_acc_impl_t *hdlp, uint64_t *host_addr,
+		    uint64_t *dev_addr, size_t repcount, uint_t flags);
+
+static void	pci_config_rep_wr8(ddi_acc_impl_t *hdlp, uint8_t *host_addr,
+		    uint8_t *dev_addr, size_t repcount, uint_t flags);
+static void	pci_config_rep_wr16(ddi_acc_impl_t *hdlp, uint16_t *host_addr,
+		    uint16_t *dev_addr, size_t repcount, uint_t flags);
+static void	pci_config_rep_wr32(ddi_acc_impl_t *hdlp, uint32_t *host_addr,
+		    uint32_t *dev_addr, size_t repcount, uint_t flags);
+static void	pci_config_rep_wr64(ddi_acc_impl_t *hdlp, uint64_t *host_addr,
+		    uint64_t *dev_addr, size_t repcount, uint_t flags);
+
 /*
  * pci_name_child:
  *
@@ -1290,7 +1322,7 @@ pci_common_peekpoke(dev_info_t *dip, dev_info_t *rdip,
  * from this time forth", and this seems like a nice self-contained place.
  */
 
-uint8_t
+static uint8_t
 pci_config_rd8(ddi_acc_impl_t *hdlp, uint8_t *addr)
 {
 	pci_acc_cfblk_t *cfp;
@@ -1309,7 +1341,7 @@ pci_config_rd8(ddi_acc_impl_t *hdlp, uint8_t *addr)
 	return (rval);
 }
 
-void
+static void
 pci_config_rep_rd8(ddi_acc_impl_t *hdlp, uint8_t *host_addr,
     uint8_t *dev_addr, size_t repcount, uint_t flags)
 {
@@ -1326,7 +1358,7 @@ pci_config_rep_rd8(ddi_acc_impl_t *hdlp, uint8_t *host_addr,
 			*h++ = pci_config_rd8(hdlp, d);
 }
 
-uint16_t
+static uint16_t
 pci_config_rd16(ddi_acc_impl_t *hdlp, uint16_t *addr)
 {
 	pci_acc_cfblk_t *cfp;
@@ -1345,7 +1377,7 @@ pci_config_rd16(ddi_acc_impl_t *hdlp, uint16_t *addr)
 	return (rval);
 }
 
-void
+static void
 pci_config_rep_rd16(ddi_acc_impl_t *hdlp, uint16_t *host_addr,
     uint16_t *dev_addr, size_t repcount, uint_t flags)
 {
@@ -1362,7 +1394,7 @@ pci_config_rep_rd16(ddi_acc_impl_t *hdlp, uint16_t *host_addr,
 			*h++ = pci_config_rd16(hdlp, d);
 }
 
-uint32_t
+static uint32_t
 pci_config_rd32(ddi_acc_impl_t *hdlp, uint32_t *addr)
 {
 	pci_acc_cfblk_t *cfp;
@@ -1381,7 +1413,7 @@ pci_config_rd32(ddi_acc_impl_t *hdlp, uint32_t *addr)
 	return (rval);
 }
 
-void
+static void
 pci_config_rep_rd32(ddi_acc_impl_t *hdlp, uint32_t *host_addr,
     uint32_t *dev_addr, size_t repcount, uint_t flags)
 {
@@ -1399,7 +1431,7 @@ pci_config_rep_rd32(ddi_acc_impl_t *hdlp, uint32_t *host_addr,
 }
 
 
-void
+static void
 pci_config_wr8(ddi_acc_impl_t *hdlp, uint8_t *addr, uint8_t value)
 {
 	pci_acc_cfblk_t *cfp;
@@ -1415,7 +1447,7 @@ pci_config_wr8(ddi_acc_impl_t *hdlp, uint8_t *addr, uint8_t value)
 	    cfp->c_funcnum, reg, value);
 }
 
-void
+static void
 pci_config_rep_wr8(ddi_acc_impl_t *hdlp, uint8_t *host_addr,
     uint8_t *dev_addr, size_t repcount, uint_t flags)
 {
@@ -1432,7 +1464,7 @@ pci_config_rep_wr8(ddi_acc_impl_t *hdlp, uint8_t *host_addr,
 			pci_config_wr8(hdlp, d, *h++);
 }
 
-void
+static void
 pci_config_wr16(ddi_acc_impl_t *hdlp, uint16_t *addr, uint16_t value)
 {
 	pci_acc_cfblk_t *cfp;
@@ -1448,7 +1480,7 @@ pci_config_wr16(ddi_acc_impl_t *hdlp, uint16_t *addr, uint16_t value)
 	    cfp->c_funcnum, reg, value);
 }
 
-void
+static void
 pci_config_rep_wr16(ddi_acc_impl_t *hdlp, uint16_t *host_addr,
     uint16_t *dev_addr, size_t repcount, uint_t flags)
 {
@@ -1465,7 +1497,7 @@ pci_config_rep_wr16(ddi_acc_impl_t *hdlp, uint16_t *host_addr,
 			pci_config_wr16(hdlp, d, *h++);
 }
 
-void
+static void
 pci_config_wr32(ddi_acc_impl_t *hdlp, uint32_t *addr, uint32_t value)
 {
 	pci_acc_cfblk_t *cfp;
@@ -1498,7 +1530,7 @@ pci_config_rep_wr32(ddi_acc_impl_t *hdlp, uint32_t *host_addr,
 			pci_config_wr32(hdlp, d, *h++);
 }
 
-uint64_t
+static uint64_t
 pci_config_rd64(ddi_acc_impl_t *hdlp, uint64_t *addr)
 {
 	uint32_t lw_val;
@@ -1514,7 +1546,7 @@ pci_config_rd64(ddi_acc_impl_t *hdlp, uint64_t *addr)
 	return (val);
 }
 
-void
+static void
 pci_config_wr64(ddi_acc_impl_t *hdlp, uint64_t *addr, uint64_t value)
 {
 	uint32_t lw_val;
@@ -1529,7 +1561,7 @@ pci_config_wr64(ddi_acc_impl_t *hdlp, uint64_t *addr, uint64_t value)
 	pci_config_wr32(hdlp, dp, hi_val);
 }
 
-void
+static void
 pci_config_rep_rd64(ddi_acc_impl_t *hdlp, uint64_t *host_addr,
     uint64_t *dev_addr, size_t repcount, uint_t flags)
 {
@@ -1542,7 +1574,7 @@ pci_config_rep_rd64(ddi_acc_impl_t *hdlp, uint64_t *host_addr,
 	}
 }
 
-void
+static void
 pci_config_rep_wr64(ddi_acc_impl_t *hdlp, uint64_t *host_addr,
     uint64_t *dev_addr, size_t repcount, uint_t flags)
 {
