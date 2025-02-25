@@ -44,7 +44,7 @@
 #include <sys/pci_tools.h>
 #include <io/pci/pci_tools_ext.h>
 #include <io/pci/pci_common.h>
-#include <sys/pci_cfgspace.h>
+#include <sys/pci_cfgacc.h>
 #include <sys/pci_impl.h>
 #include <sys/pci_cap.h>
 #include <sys/obpdefs.h>
@@ -1333,9 +1333,10 @@ pci_config_rd8(ddi_acc_impl_t *hdlp, uint8_t *addr)
 
 	reg = (int)(uintptr_t)addr;
 
-	cfp = (pci_acc_cfblk_t *)&hdlp->ahi_common.ah_bus_private;
+	cfp = (pci_acc_cfblk_t *)hdlp->ahi_common.ah_bus_private;
 
-	rval = (*pci_getb_func)(cfp->c_busnum, cfp->c_devnum, cfp->c_funcnum,
+	rval = pci_cfgacc_get8(cfp->c_rootdip,
+	    PCI_GETBDF(cfp->c_busnum, cfp->c_devnum, cfp->c_funcnum),
 	    reg);
 
 	return (rval);
@@ -1369,9 +1370,10 @@ pci_config_rd16(ddi_acc_impl_t *hdlp, uint16_t *addr)
 
 	reg = (int)(uintptr_t)addr;
 
-	cfp = (pci_acc_cfblk_t *)&hdlp->ahi_common.ah_bus_private;
+	cfp = (pci_acc_cfblk_t *)hdlp->ahi_common.ah_bus_private;
 
-	rval = (*pci_getw_func)(cfp->c_busnum, cfp->c_devnum, cfp->c_funcnum,
+	rval = pci_cfgacc_get16(cfp->c_rootdip,
+	    PCI_GETBDF(cfp->c_busnum, cfp->c_devnum, cfp->c_funcnum),
 	    reg);
 
 	return (rval);
@@ -1405,10 +1407,11 @@ pci_config_rd32(ddi_acc_impl_t *hdlp, uint32_t *addr)
 
 	reg = (int)(uintptr_t)addr;
 
-	cfp = (pci_acc_cfblk_t *)&hdlp->ahi_common.ah_bus_private;
+	cfp = (pci_acc_cfblk_t *)hdlp->ahi_common.ah_bus_private;
 
-	rval = (*pci_getl_func)(cfp->c_busnum, cfp->c_devnum,
-	    cfp->c_funcnum, reg);
+	rval = pci_cfgacc_get16(cfp->c_rootdip,
+	    PCI_GETBDF(cfp->c_busnum, cfp->c_devnum, cfp->c_funcnum),
+	    reg);
 
 	return (rval);
 }
@@ -1441,10 +1444,11 @@ pci_config_wr8(ddi_acc_impl_t *hdlp, uint8_t *addr, uint8_t value)
 
 	reg = (int)(uintptr_t)addr;
 
-	cfp = (pci_acc_cfblk_t *)&hdlp->ahi_common.ah_bus_private;
+	cfp = (pci_acc_cfblk_t *)hdlp->ahi_common.ah_bus_private;
 
-	(*pci_putb_func)(cfp->c_busnum, cfp->c_devnum,
-	    cfp->c_funcnum, reg, value);
+	pci_cfgacc_put8(cfp->c_rootdip,
+	    PCI_GETBDF(cfp->c_busnum, cfp->c_devnum, cfp->c_funcnum),
+	    reg, value);
 }
 
 static void
@@ -1474,10 +1478,11 @@ pci_config_wr16(ddi_acc_impl_t *hdlp, uint16_t *addr, uint16_t value)
 
 	reg = (int)(uintptr_t)addr;
 
-	cfp = (pci_acc_cfblk_t *)&hdlp->ahi_common.ah_bus_private;
+	cfp = (pci_acc_cfblk_t *)hdlp->ahi_common.ah_bus_private;
 
-	(*pci_putw_func)(cfp->c_busnum, cfp->c_devnum,
-	    cfp->c_funcnum, reg, value);
+	pci_cfgacc_put16(cfp->c_rootdip,
+	    PCI_GETBDF(cfp->c_busnum, cfp->c_devnum, cfp->c_funcnum),
+	    reg, value);
 }
 
 static void
@@ -1507,10 +1512,11 @@ pci_config_wr32(ddi_acc_impl_t *hdlp, uint32_t *addr, uint32_t value)
 
 	reg = (int)(uintptr_t)addr;
 
-	cfp = (pci_acc_cfblk_t *)&hdlp->ahi_common.ah_bus_private;
+	cfp = (pci_acc_cfblk_t *)hdlp->ahi_common.ah_bus_private;
 
-	(*pci_putl_func)(cfp->c_busnum, cfp->c_devnum,
-	    cfp->c_funcnum, reg, value);
+	pci_cfgacc_put32(cfp->c_rootdip,
+	    PCI_GETBDF(cfp->c_busnum, cfp->c_devnum, cfp->c_funcnum),
+	    reg, value);
 }
 
 void

@@ -34,6 +34,7 @@
 #include <sys/fm/io/ddi.h>
 #include <sys/fm/protocol.h>
 #include <sys/ontrap.h>
+#include <sys/pci_impl.h>
 
 /*
  * SECTION: DDI Data Access
@@ -73,8 +74,18 @@ impl_acc_hdl_alloc(int (*waitfp)(caddr_t), caddr_t arg)
 		kmem_free(hp, sizeof (ddi_acc_impl_t));
 		goto fail;
 	}
+
+	if ((hp->ahi_common.ah_bus_private = kmem_zalloc(
+	    sizeof (pci_acc_cfblk_t), sleepflag)) == NULL) {
+		kmem_free(hp->ahi_err, sizeof (ndi_err_t));
+		kmem_free(hp, sizeof (ddi_acc_impl_t));
+		goto fail;
+	}
+
 	if ((otp = (on_trap_data_t *)kmem_zalloc(
 	    sizeof (on_trap_data_t), sleepflag)) == NULL) {
+		kmem_free(hp->ahi_common.ah_bus_private,
+		    sizeof (pci_acc_cfblk_t));
 		kmem_free(hp->ahi_err, sizeof (ndi_err_t));
 		kmem_free(hp, sizeof (ddi_acc_impl_t));
 		goto fail;
@@ -101,6 +112,8 @@ impl_acc_hdl_free(ddi_acc_handle_t handle)
 	 */
 	hp = (ddi_acc_impl_t *)handle;
 	if (hp) {
+		kmem_free(hp->ahi_common.ah_bus_private,
+		    sizeof (pci_acc_cfblk_t));
 		kmem_free(hp->ahi_err->err_ontrap, sizeof (on_trap_data_t));
 		kmem_free(hp->ahi_err, sizeof (ndi_err_t));
 		kmem_free(hp, sizeof (ddi_acc_impl_t));
