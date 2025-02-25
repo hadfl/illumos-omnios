@@ -54,13 +54,6 @@ extern uintptr_t pcie_cfgspace_ecam_vaddr;
 
 kmutex_t pcicfg_mmio_mutex;
 
-uint8_t (*pci_getb_func)(int bus, int dev, int func, int reg);
-uint16_t (*pci_getw_func)(int bus, int dev, int func, int reg);
-uint32_t (*pci_getl_func)(int bus, int dev, int func, int reg);
-void (*pci_putb_func)(int bus, int dev, int func, int reg, uint8_t val);
-void (*pci_putw_func)(int bus, int dev, int func, int reg, uint16_t val);
-void (*pci_putl_func)(int bus, int dev, int func, int reg, uint32_t val);
-
 boolean_t
 pcie_access_check(int bus, int dev, int func, int reg, size_t len)
 {

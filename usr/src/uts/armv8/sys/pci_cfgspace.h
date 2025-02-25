@@ -33,21 +33,8 @@ extern "C" {
 
 extern void pci_cfgspace_init(void);
 
-
-/*
- * These used to be set by, and live in, pci_autoconfig; now they are set
- * by pci_cfgspace_init(), and live in the base kernel.
- */
-
-extern uint8_t (*pci_getb_func)(int bus, int dev, int func, int reg);
-extern uint16_t (*pci_getw_func)(int bus, int dev, int func, int reg);
-extern uint32_t (*pci_getl_func)(int bus, int dev, int func, int reg);
-extern void (*pci_putb_func)(int bus, int dev, int func, int reg, uint8_t val);
-extern void (*pci_putw_func)(int bus, int dev, int func, int reg, uint16_t val);
-extern void (*pci_putl_func)(int bus, int dev, int func, int reg, uint32_t val);
 #ifdef	__cplusplus
 }
 #endif
-
 
 #endif	/* _SYS_PCI_CFGSPACE_H */

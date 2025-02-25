@@ -77,11 +77,5 @@ pcie_cfgspace_none_init(void)
 {
 	cmn_err(CE_NOTE, "PCIe: No config space access");
 
-	pci_getb_func = pcie_cfgspace_none_read_uint8;
-	pci_getw_func = pcie_cfgspace_none_read_uint16;
-	pci_getl_func = pcie_cfgspace_none_read_uint32;
-	pci_putb_func = pcie_cfgspace_none_write_uint8;
-	pci_putw_func = pcie_cfgspace_none_write_uint16;
-	pci_putl_func = pcie_cfgspace_none_write_uint32;
 	pci_cfgacc_acc_p = pcie_cfgspace_none_acc;
 }

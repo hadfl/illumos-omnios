@@ -267,12 +267,6 @@ pcie_cfgspace_ecam_init(uintptr_t addr, size_t size)
 		return (-1);
 	}
 
-	pci_getb_func = pcie_cfgspace_ecam_read_uint8;
-	pci_getw_func = pcie_cfgspace_ecam_read_uint16;
-	pci_getl_func = pcie_cfgspace_ecam_read_uint32;
-	pci_putb_func = pcie_cfgspace_ecam_write_uint8;
-	pci_putw_func = pcie_cfgspace_ecam_write_uint16;
-	pci_putl_func = pcie_cfgspace_ecam_write_uint32;
 	pci_cfgacc_acc_p = pcie_cfgspace_ecam_acc;
 
 	return (0);
