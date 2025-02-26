@@ -81,7 +81,7 @@ pcie_bdfr_to_addr(int bus, int dev, int func, int reg)
 	return (bdfr + pcie_cfgspace_ecam_vaddr);
 }
 
-uint8_t
+static uint8_t
 pcie_cfgspace_ecam_read_uint8(int bus, int dev, int func, int reg)
 {
 	volatile uint8_t *u8p;
@@ -95,7 +95,7 @@ pcie_cfgspace_ecam_read_uint8(int bus, int dev, int func, int reg)
 	return (*u8p);
 }
 
-void
+static void
 pcie_cfgspace_ecam_write_uint8(int bus, int dev, int func, int reg, uint8_t val)
 {
 	volatile uint8_t *u8p;
@@ -108,7 +108,7 @@ pcie_cfgspace_ecam_write_uint8(int bus, int dev, int func, int reg, uint8_t val)
 	*u8p = val;
 }
 
-uint16_t
+static uint16_t
 pcie_cfgspace_ecam_read_uint16(int bus, int dev, int func, int reg)
 {
 	volatile uint16_t *u16p;
@@ -122,7 +122,7 @@ pcie_cfgspace_ecam_read_uint16(int bus, int dev, int func, int reg)
 	return (*u16p);
 }
 
-void
+static void
 pcie_cfgspace_ecam_write_uint16(int bus, int dev, int func, int reg,
     uint16_t val)
 {
@@ -136,7 +136,7 @@ pcie_cfgspace_ecam_write_uint16(int bus, int dev, int func, int reg,
 	*u16p = val;
 }
 
-uint32_t
+static uint32_t
 pcie_cfgspace_ecam_read_uint32(int bus, int dev, int func, int reg)
 {
 	volatile uint32_t *u32p;
@@ -150,7 +150,7 @@ pcie_cfgspace_ecam_read_uint32(int bus, int dev, int func, int reg)
 	return (*u32p);
 }
 
-void
+static void
 pcie_cfgspace_ecam_write_uint32(int bus, int dev, int func, int reg,
     uint32_t val)
 {
@@ -167,7 +167,7 @@ pcie_cfgspace_ecam_write_uint32(int bus, int dev, int func, int reg,
 /*
  * XXX Historically only 32-bit accesses were done to configuration space.
  */
-uint64_t
+static uint64_t
 pcie_cfgspace_ecam_read_uint64(int bus, int dev, int func, int reg)
 {
 	volatile uint64_t *u64p;
@@ -181,7 +181,7 @@ pcie_cfgspace_ecam_read_uint64(int bus, int dev, int func, int reg)
 	return (*u64p);
 }
 
-void
+static void
 pcie_cfgspace_ecam_write_uint64(int bus, int dev, int func, int reg,
     uint64_t val)
 {
@@ -195,11 +195,7 @@ pcie_cfgspace_ecam_write_uint64(int bus, int dev, int func, int reg,
 	*u64p = val;
 }
 
-/*
- * This is an entry point that expects accesses in a different pattern from the
- * traditional function pointers used above.
- */
-void
+static void
 pcie_cfgspace_ecam_acc(pci_cfgacc_req_t *req)
 {
 	int bus, dev, func, reg;

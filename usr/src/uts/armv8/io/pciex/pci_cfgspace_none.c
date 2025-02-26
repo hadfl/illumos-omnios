@@ -24,49 +24,49 @@
 extern boolean_t pcie_access_check(int, int, int, int, size_t);
 extern void (*pci_cfgacc_acc_p)(pci_cfgacc_req_t *);
 
-uint8_t
+static uint8_t
 pcie_cfgspace_none_read_uint8(int bus, int dev, int func, int reg) {
 	return (PCI_EINVAL8);
 }
 
-void
+static void
 pcie_cfgspace_none_write_uint8(int bus, int dev, int func, int reg, uint8_t val)
 {
 }
 
-uint16_t
+static uint16_t
 pcie_cfgspace_none_read_uint16(int bus, int dev, int func, int reg)
 {
 	return (PCI_EINVAL16);
 }
 
-void
+static void
 pcie_cfgspace_none_write_uint16(int bus, int dev, int func, int reg, uint16_t val)
 {
 }
 
-uint32_t
+static uint32_t
 pcie_cfgspace_none_read_uint32(int bus, int dev, int func, int reg) {
 	return (PCI_EINVAL32);
 }
 
-void
+static void
 pcie_cfgspace_none_write_uint32(int bus, int dev, int func, int reg, uint32_t val)
 {
 }
 
-uint64_t
+static uint64_t
 pcie_cfgspace_none_read_uint64(int bus, int dev, int func, int reg)
 {
 	return (PCI_EINVAL64);
 }
 
-void
+static void
 pcie_cfgspace_none_write_uint64(int bus, int dev, int func, int reg, uint64_t val)
 {
 }
 
-void
+static void
 pcie_cfgspace_none_acc(pci_cfgacc_req_t *req)
 {
 	VAL64(req) = PCI_EINVAL64;
