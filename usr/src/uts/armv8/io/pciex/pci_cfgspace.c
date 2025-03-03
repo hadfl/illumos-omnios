@@ -13,46 +13,17 @@
  * Copyright 2023 Oxide Computer Company
  */
 
-/*
- * XXXPCI: On ARM we have basically two universes, SBSA and Not.  In the SBSA
- * world this can be ACPI based, and I think only ECAM is relevant
- *
- * In the non-BSA world this can be a lot.  We may have multiple PCIe root
- * complexes in the devicetree, each with its own space, and in theory at
- * least, its own configuration space access mechanism
- *
- * These devices may or may not (further) have been partially (or perhaps
- * fully) enumerated either by firmmware, or statically.
- *
- * The current PCI prototype makes a simplifying assumption:
- *
- * - There is only one PCIe root complex in the devicetree, it is at "/pcie"
- *   (this is generally false, but convenient to bootstrap)
- */
-
 #include <sys/ddi.h>
-#include <sys/esunddi.h>
-#include <sys/sunddi.h>
-#include <sys/promif.h>
-/* XXXPCI: for psm_map* */
-#include <sys/smp_impldefs.h>
-
-#include <sys/machparam.h>
-#include <vm/as.h>
-#include <vm/hat.h>
-#include <sys/mman.h>
-#include <sys/bootconf.h>
-#include <sys/spl.h>
 #include <sys/pci.h>
 #include <sys/pcie.h>
-#include <sys/pcie_impl.h>
-#include <sys/pci_cfgacc.h>
-#include <sys/machsystm.h>
+#include <sys/spl.h>
+#include <sys/sunddi.h>
 #include <sys/sysmacros.h>
+#include <sys/types.h>
 
-extern uintptr_t pcie_cfgspace_ecam_vaddr;
+#include <sys/promif.h>
 
-kmutex_t pcicfg_mmio_mutex;
+extern kmutex_t pcicfg_mmio_mutex;
 
 boolean_t
 pcie_access_check(int bus, int dev, int func, int reg, size_t len)

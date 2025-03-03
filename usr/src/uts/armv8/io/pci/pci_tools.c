@@ -695,6 +695,7 @@ pcitool_cfg_access(pcitool_reg_t *prg, boolean_t write_flag,
 #endif
 	/* Set phys_addr only if MMIO is used */
 	/* XXXPCI: This is a virtual for us... */
+#if XXXPCI
 	prg->phys_addr = 0;
 	if (!req.ioacc && pcie_cfgspace_ecam_vaddr != 0) {
 		prg->phys_addr = pcie_cfgspace_ecam_vaddr + prg->offset +
@@ -702,7 +703,7 @@ pcitool_cfg_access(pcitool_reg_t *prg, boolean_t write_flag,
 		    (prg->dev_no << PCIEX_REG_DEV_SHIFT) |
 		    (prg->func_no << PCIEX_REG_FUNC_SHIFT));
 	}
-
+#endif
 	return (rval);
 }
 

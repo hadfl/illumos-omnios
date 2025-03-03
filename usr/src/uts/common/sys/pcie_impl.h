@@ -31,8 +31,11 @@
 extern "C" {
 #endif
 
+#include <sys/ddi.h>
+#include <sys/ddifm.h>
 #include <sys/pcie.h>
 #include <sys/pciev.h>
+#include <sys/sunddi.h>
 #include <sys/taskq_impl.h>
 
 #define	PCI_GET_BDF(dip)	\
@@ -774,6 +777,7 @@ extern int pcie_link_retrain(dev_info_t *);
 
 #define	PCIE_ZALLOC(data) kmem_zalloc(sizeof (data), KM_SLEEP)
 
+extern boolean_t pcie_cfgspace_access_check(int, int, int, int, size_t);
 
 #ifdef	__cplusplus
 }

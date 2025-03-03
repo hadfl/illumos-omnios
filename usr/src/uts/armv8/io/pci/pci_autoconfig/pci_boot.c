@@ -149,9 +149,9 @@ typedef enum {
 static uchar_t max_dev_pci = 32;	/* PCI standard */
 int pci_boot_maxbus;
 
-int pci_boot_debug = 0;
+int pci_boot_debug = 1;
 int pci_debug_bus_start = 0;
-int pci_debug_bus_end = 0xff;
+int pci_debug_bus_end = 0x4;
 
 static int num_root_bus = 0;	/* count of root buses */
 extern dev_info_t *pcie_get_rc_dip(dev_info_t *);
@@ -208,107 +208,78 @@ dump_memlists_impl(const char *tag, int bus)
 	}
 }
 
-static int
-enumerate_root_cb(dev_info_t *dip, void *arg)
-{
-	char *devtype;
-	uint_t *root_bus_addr = arg;
-
-	/*
-	 * XXXPCI: This is a horrible way to do this, but I'm not seeing any
-	 * better options than this, or just assuming anything we see here in
-	 * the future is going to be PCIe.  At least this -- nominally,
-	 * vaguely -- allows for plain PCI still.
-	 */
-	if (strcmp(ddi_node_name(dip), "pcie") != 0)
-		return (DDI_WALK_CONTINUE);
-
-	if (ddi_prop_lookup_string(DDI_DEV_T_ANY, dip, DDI_PROP_DONTPASS,
-	    OBP_DEVICETYPE, &devtype) == DDI_SUCCESS) {
-		if (strcmp(devtype, "pci") == 0) {
-			int bus_def[] = {0, 0xff};
-			int *busrng;
-			uint_t busrng_sz;
-
-			if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, dip,
-			    DDI_PROP_DONTPASS, "bus-range",
-			    &busrng, &busrng_sz) == DDI_SUCCESS) {
-				VERIFY3U(busrng_sz, ==, 2);
-				bus_def[0] = busrng[0];
-				bus_def[1] = busrng[1];
-				ddi_prop_free(busrng);
-			}
-
-			cmn_err(CE_NOTE, "PCI enumerating %s [%d, %d]",
-			    ddi_node_name(dip), bus_def[0], bus_def[1]);
-
-			/*
-			 * XXXPCI: This would be the time hang something (a
-			 * property?) on the dip indicating how we must access
-			 * its config space.
-			 *
-			 * See also: the "ecam" / MMCFG_PROPNAME property.
-			 */
-			num_root_bus++;
-
-			/*
-			 * The first bus is _our_ bus, others in the range
-			 * are available to subordinate bridges.
-			 */
-			pci_bus_res[bus_def[0]].dip = dip;
-			pci_bus_res[bus_def[0]].root_addr = *root_bus_addr;
-
-			*root_bus_addr += 1;
-
-			if (create_pcie_root_bus(bus_def[0], dip) == B_FALSE) {
-				/* Undo (most of) what create_pcie_root_bus did, while failing */
-				(void) ndi_prop_update_string(DDI_DEV_T_NONE, dip,
-				    OBP_DEVICETYPE, "pci");
-			}
-
-			(void) ndi_devi_bind_driver(dip, 0);
-
-			/* XXX: Really here, that's a weird choice? */
-			for (int i = bus_def[0]; i <= bus_def[1]; i++) {
-				enumerate_bus_devs(dip, i);
-			}
-
-			/*
-			 * The firmware may or may not have given us some
-			 * information about children on the bus, if we've
-			 * found a PCI node, ignore any children.
-			 */
-			return (DDI_WALK_PRUNECHILD);
-		}
-		ddi_prop_free(devtype);
-	}
-
-	return (DDI_WALK_CONTINUE);
-}
-
 /*
  * Enumerate all PCI devices
  */
 void
-pci_setup_tree(void)
+pci_setup_tree(dev_info_t *dip)
 {
 	uint_t i;
 	uint_t root_bus_addr = 0;
+	static boolean_t initialized = B_FALSE;
 
-	alloc_res_array();
-	for (i = 0; i <= pci_boot_maxbus; i++) {
-		pci_bus_res[i].par_bus = (uchar_t)-1;
-		pci_bus_res[i].root_addr = (uchar_t)-1;
-		pci_bus_res[i].sub_bus = i;
+	/* No root complex driver has initialized yet, set up global data */
+	if (!initialized) {
+		initialized = B_TRUE;
+		alloc_res_array();
+
+		for (i = 0; i <= pci_boot_maxbus; i++) {
+			pci_bus_res[i].par_bus = (uchar_t)-1;
+			pci_bus_res[i].root_addr = (uchar_t)-1;
+			pci_bus_res[i].sub_bus = i;
+		}
 	}
 
-	ddi_walk_devs(ddi_root_node(),
-	    enumerate_root_cb, &root_bus_addr);
+	int bus_def[] = {0, 0xff};
+	int *busrng;
+	uint_t busrng_sz;
+
+	if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, dip,
+	    DDI_PROP_DONTPASS, "bus-range",
+	    &busrng, &busrng_sz) == DDI_SUCCESS) {
+		VERIFY3U(busrng_sz, ==, 2);
+		bus_def[0] = busrng[0];
+		bus_def[1] = busrng[1];
+		ddi_prop_free(busrng);
+	}
+
+	/* We have already run through this dip */
+	if (pci_bus_res[bus_def[0]].dip != NULL) {
+		VERIFY3P(pci_bus_res[bus_def[0]].dip, ==, dip);
+		return;
+	}
+
+	dev_err(dip, CE_NOTE, "PCI enumerating [%d, %d]",
+	    bus_def[0], bus_def[1]);
+
+	num_root_bus++;
+
+	/*
+	 * The first bus is _our_ bus, others in the range
+	 * are available to subordinate bridges.
+	 */
+	pci_bus_res[bus_def[0]].dip = dip;
+	pci_bus_res[bus_def[0]].root_addr = root_bus_addr++;
+
+	if (create_pcie_root_bus(bus_def[0], dip) == B_FALSE) {
+		/*
+		 * Undo (most of) what create_pcie_root_bus did,
+		 * while failing
+		 */
+		(void) ndi_prop_update_string(DDI_DEV_T_NONE,
+		    dip, OBP_DEVICETYPE, "pci");
+	}
+
+	(void) ndi_devi_bind_driver(dip, 0);
+
+	for (int i = bus_def[0]; i <= bus_def[1]; i++) {
+		enumerate_bus_devs(dip, i);
+	}
 }
 
 static void
-set_ppb_res(dev_info_t *rcdip, uchar_t bus, uchar_t dev, uchar_t func, mem_res_t type,
-    uint64_t base, uint64_t limit)
+set_ppb_res(dev_info_t *rcdip, uchar_t bus, uchar_t dev, uchar_t func,
+    mem_res_t type, uint64_t base, uint64_t limit)
 {
 	char *tag;
 
@@ -396,8 +367,8 @@ set_ppb_res(dev_info_t *rcdip, uchar_t bus, uchar_t dev, uchar_t func, mem_res_t
 }
 
 static void
-fetch_ppb_res(dev_info_t *rcdip, uchar_t bus, uchar_t dev, uchar_t func, mem_res_t type,
-    uint64_t *basep, uint64_t *limitp)
+fetch_ppb_res(dev_info_t *rcdip, uchar_t bus, uchar_t dev, uchar_t func,
+    mem_res_t type, uint64_t *basep, uint64_t *limitp)
 {
 	uint64_t val, base, limit;
 
@@ -491,7 +462,8 @@ enumerate_bus_devs(dev_info_t *rcdip, uchar_t bus)
 			header = pci_cfgacc_get8(rcdip,
 			    PCI_GETBDF(bus, dev, func), PCI_CONF_HEADER);
 			if (header == 0xff) {
-				dcmn_err(CE_CONT, "%x:%x:%x has no header\n", bus, dev, func);
+				dcmn_err(CE_CONT, "%x:%x:%x has no header\n",
+				    bus, dev, func);
 				continue; /* illegal value */
 			}
 
@@ -505,7 +477,8 @@ enumerate_bus_devs(dev_info_t *rcdip, uchar_t bus)
 				nfunc = 8;
 			}
 
-			dcmn_err(CE_CONT, "%x:%x:%x process_devfunc\n", bus, dev, func);
+			dcmn_err(CE_CONT, "%x:%x:%x process_devfunc\n", bus,
+			    dev, func);
 			process_devfunc(rcdip, bus, dev, func);
 		}
 	}
@@ -1408,7 +1381,8 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip, uchar_t bus, uchar_t dev,
 	} else if (io.base < io.limit) {
 		uint64_t size = io.limit - io.base + 1;
 
-		pci_memlist_insert(&pci_bus_res[secbus].io_avail, io.base, size);
+		pci_memlist_insert(&pci_bus_res[secbus].io_avail, io.base,
+		    size);
 		pci_memlist_insert(&pci_bus_res[bus].io_used, io.base, size);
 
 		if (pci_bus_res[bus].io_avail != NULL) {
@@ -1434,7 +1408,8 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip, uchar_t bus, uchar_t dev,
 	} else if (mem.base < mem.limit) {
 		uint64_t size = mem.limit - mem.base + 1;
 
-		pci_memlist_insert(&pci_bus_res[secbus].mem_avail, mem.base, size);
+		pci_memlist_insert(&pci_bus_res[secbus].mem_avail, mem.base,
+		    size);
 		pci_memlist_insert(&pci_bus_res[bus].mem_used, mem.base, size);
 		/* remove from parent resource list */
 		(void) pci_memlist_remove(&pci_bus_res[bus].mem_avail,
@@ -1455,7 +1430,8 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip, uchar_t bus, uchar_t dev,
 
 		pci_memlist_insert(&pci_bus_res[secbus].pmem_avail,
 		    pmem.base, size);
-		pci_memlist_insert(&pci_bus_res[bus].pmem_used, pmem.base, size);
+		pci_memlist_insert(&pci_bus_res[bus].pmem_used, pmem.base,
+		    size);
 		/* remove from parent resource list */
 		(void) pci_memlist_remove(&pci_bus_res[bus].pmem_avail,
 		    pmem.base, size);
@@ -1494,7 +1470,8 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip, uchar_t bus, uchar_t dev,
 		pci_memlist_insert(&pci_bus_res[secbus].mem_avail, 0xa0000,
 		    0x20000);
 
-		pci_memlist_insert(&pci_bus_res[bus].mem_used, 0xa0000, 0x20000);
+		pci_memlist_insert(&pci_bus_res[bus].mem_used, 0xa0000,
+		    0x20000);
 		if (pci_bus_res[bus].mem_avail != NULL) {
 			(void) pci_memlist_remove(&pci_bus_res[bus].mem_avail,
 			    0xa0000, 0x20000);

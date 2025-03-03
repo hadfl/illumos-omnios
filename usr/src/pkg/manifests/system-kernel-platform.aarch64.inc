@@ -42,6 +42,7 @@ file path=platform/armv8/kernel/dacf/$(ARCH)/consconfig_dacf mode=0755
 dir  path=platform/armv8/kernel/drv
 dir  path=platform/armv8/kernel/drv/$(ARCH)
 file path=platform/armv8/kernel/drv/$(ARCH)/arm_gtmr
+file path=platform/armv8/kernel/drv/$(ARCH)/ecam
 file path=platform/armv8/kernel/drv/$(ARCH)/gicthree
 file path=platform/armv8/kernel/drv/$(ARCH)/gictwo
 file path=platform/armv8/kernel/drv/$(ARCH)/npe
@@ -63,11 +64,12 @@ file path=usr/share/man/man4d/npe.4d
 file path=usr/share/man/man4d/simple-bus.4d
 driver name=arm_gtmr alias=arm,armv8-timer
 driver name=devfdt perms="* 0400 root sys"
+driver name=ecam alias=pci-host-ecam-generic
 driver name=gicthree alias=arm,gic-v3
 driver name=gictwo \
     alias=arm,cortex-a15-gic \
     alias=arm,gic-400
-driver name=npe alias=pci-host-ecam-generic
+#driver name=npe alias=pciex_root_complex
 driver name=ns16550a perms="* 0666 root sys" perms="*,cu 0600 uucp uucp" \
     alias=arm,pl011
 driver name=rootnex

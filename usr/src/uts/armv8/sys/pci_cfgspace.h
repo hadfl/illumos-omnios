@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-extern void pci_cfgspace_init(void);
+#define	OBP_CFGSPACE_HOOK	"pcie-cfgspace-access-hook"
 
 #ifdef	__cplusplus
 }
