@@ -234,6 +234,7 @@ MISC_KMODS += pcie
 
 DRV_KMODS += pcieb
 DRV_KMODS += npe
+DRV_KMODS += ecam
 
 #
 #	'Dacf' Modules (/kernel/dacf):

@@ -23,14 +23,35 @@
  * Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
+#include <sys/ddi.h>
+#include <sys/sunddi.h>
+
 #include <sys/pci.h>
 #include <sys/pci_cfgacc.h>
+#include <sys/pci_cfgspace.h>
 
-extern void (*pci_cfgacc_acc_p)(pci_cfgacc_req_t *req);
+typedef void (*acc_impl_t)(pci_cfgacc_req_t *);
 
 void
 pci_cfgacc_acc(pci_cfgacc_req_t *req)
 {
-	/* XXXPCI: This reverses the usual relationship */
-	pci_cfgacc_acc_p(req);
+	acc_impl_t acc_impl;
+
+	/*
+	 * XXXPCI: This is not how I would like to do this, but everything else
+	 * in my brain is far worse
+	 */
+	acc_impl = (acc_impl_t)(uintptr_t)ddi_prop_get_int64(DDI_DEV_T_ANY,
+	    req->rcdip, DDI_PROP_DONTPASS, OBP_CFGSPACE_HOOK, 0);
+
+	if (acc_impl == NULL) {
+		dev_err(req->rcdip, CE_WARN, "No '" OBP_CFGSPACE_HOOK "' on "
+		    "PCI root complex");
+		if (!req->write) {
+			VAL64(req) = PCI_EINVAL64;
+		}
+		return;
+	}
+
+	acc_impl(req);
 }

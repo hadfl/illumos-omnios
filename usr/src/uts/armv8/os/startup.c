@@ -1281,16 +1281,6 @@ startup_modules(void)
 		*cp = 0;
 	}
 
-
-	/*
-	 * Get access to PCIe configuration space
-	 *
-	 * This is as late as this can possibly happen (we need cfgspace to
-	 * build the device tree).
-	 */
-	extern void pcie_cfgspace_init(void); /* XXXPCI: Header */
-	pcie_cfgspace_init();
-
 	/*
 	 * Create a kernel device tree. First, create rootnex and
 	 * then invoke bus specific code to probe devices.

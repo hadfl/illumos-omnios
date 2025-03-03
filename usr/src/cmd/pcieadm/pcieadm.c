@@ -135,9 +135,9 @@ pcieadm_ofmt_errx(const char *fmt, ...)
  * indicates it's not the synthetic root of the tree. However, the node name
  * changes for some classes of devices such as GPUs. As such, for those we try
  * to look at the compatible property and see if we have a pciexclass or
- * pciclass entry. We look specifically for the class to make sure that we don't
- * fall for the synthetic nodes that have a compatible property of
- * 'pciex_root_complex'.
+ * pciclass entry. We look specifically for the class to make sure that we
+ * don't fall for the synthetic nodes on some platforms, which we give a
+ * compatible property of 'pciex_root_complex'.
  *
  * The compatible property is a single string that is actually a compressed
  * string. That is, there are multiple strings concatenated together in a single

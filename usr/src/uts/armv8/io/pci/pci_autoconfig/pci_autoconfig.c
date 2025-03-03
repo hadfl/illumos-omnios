@@ -54,8 +54,6 @@ create_pcie_root_bus(uchar_t bus, dev_info_t *dip)
 {
 	(void) ndi_prop_update_string(DDI_DEV_T_NONE, dip,
 	    OBP_DEVICETYPE, "pciex");
-	(void) ndi_prop_update_string(DDI_DEV_T_NONE, dip,
-	    OBP_COMPATIBLE, "pciex_root_complex");
 
 	pcie_rc_init_bus(dip);
 
@@ -63,18 +61,17 @@ create_pcie_root_bus(uchar_t bus, dev_info_t *dip)
 }
 
 void
-pci_enumerate(int reprogram)
+pci_enumerate(dev_info_t *dip)
 {
-	extern void pci_setup_tree(void);
+	extern void pci_setup_tree(dev_info_t *);
 	extern int pci_boot_maxbus;
 
-	if (reprogram) {
-		return;
-	} else {
-		pci_boot_maxbus = pci_prd_max_bus();
-		pci_setup_tree();
-	}
+	pci_boot_maxbus = pci_prd_max_bus();
+	pci_setup_tree(dip);
 }
+
+extern dev_info_t *pcie_get_rc_dip(dev_info_t *);
+extern dev_info_t *pci_boot_bus_to_dip(uint32_t);
 
 static struct modlmisc modlmisc = {
 	&mod_miscops, "PCI Enumeration"
@@ -102,7 +99,6 @@ _init(void)
 		return (err);
 	}
 
-	impl_bus_add_probe(pci_enumerate);
 	return (0);
 }
 
@@ -114,7 +110,6 @@ _fini(void)
 	if ((err = mod_remove(&modlinkage)) != 0)
 		return (err);
 
-	impl_bus_delete_probe(pci_enumerate);
 	pci_prd_fini();
 	return (0);
 }
