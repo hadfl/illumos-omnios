@@ -73,7 +73,6 @@
 #include <sys/hotplug/pci/pcie_hp.h>
 #include <io/pci/pci_tools_ext.h>
 #include <io/pci/pci_common.h>
-#include <io/pciex/pcie_nvidia.h>
 #include <sys/obpdefs.h>
 
 /*
@@ -1052,17 +1051,7 @@ npe_initchild(dev_info_t *child)
 	}
 
 	bus_p = PCIE_DIP2BUS(child);
-	if (bus_p) {
-		uint16_t device_id = (uint16_t)(bus_p->bus_dev_ven_id >> 16);
-		uint16_t vendor_id = (uint16_t)(bus_p->bus_dev_ven_id & 0xFFFF);
-		uint16_t rev_id = bus_p->bus_rev_id;
-
-		/* Disable AER for certain NVIDIA Chipsets */
-		if ((vendor_id == NVIDIA_VENDOR_ID) &&
-		    (device_id == NVIDIA_CK804_DEVICE_ID) &&
-		    (rev_id < NVIDIA_CK804_AER_VALID_REVID))
-			bus_p->bus_aer_off = 0;
-
+	if (bus_p != NULL) {
 		pcie_init_dom(child);
 		(void) pcie_initchild(child);
 	}

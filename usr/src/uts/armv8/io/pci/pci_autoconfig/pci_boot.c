@@ -103,7 +103,6 @@
 #include <sys/pci_cfgspace.h>
 #include <sys/psw.h>
 #include "../../../../../common/pci/pci_strings.h"
-#include <io/pciex/pcie_nvidia.h>
 #include <sys/devcache.h>
 #include <sys/plat/pci_prd.h>
 #include <sys/obpdefs.h>
