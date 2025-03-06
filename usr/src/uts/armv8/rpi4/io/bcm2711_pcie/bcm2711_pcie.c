@@ -114,7 +114,7 @@ bcm2711_cfg_read(dev_info_t *dip, int bus, int dev, int func, int reg,
 {
 	bcm2711_pcie_softc_t *softc =
 	    ddi_get_soft_state(bcm2711_pcie_soft_state, ddi_get_instance(dip));
-	uint32_t ret = 0;
+	uint64_t ret = 0;
 
 	mutex_enter(&softc->bc_lock);
 
