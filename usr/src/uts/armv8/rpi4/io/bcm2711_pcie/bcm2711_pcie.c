@@ -98,8 +98,8 @@ bcm2711_cfg_read_dev(bcm2711_pcie_softc_t *softc, int bus, int dev, int func,
 		return (ddi_get32(softc->bc_handle,
 		    (uint32_t *)(softc->bc_base + BCM2711_DEV_CFG_DATA + reg)));
 	case 64:
-		return (ddi_get32(softc->bc_handle,
-		    (uint32_t *)(softc->bc_base + BCM2711_DEV_CFG_DATA + reg)));
+		return (ddi_get64(softc->bc_handle,
+		    (uint64_t *)(softc->bc_base + BCM2711_DEV_CFG_DATA + reg)));
 	}
 
 	dev_err(softc->bc_dip, CE_PANIC, "weird %ld bit config space access",
