@@ -85,7 +85,6 @@
 #include	<pthread.h>
 #include	<door.h>
 #include	<err.h>
-#include	<libzonecfg.h>
 #include	<sys/debug.h>
 #include	<sys/stdbool.h>
 #include	<sys/sysmacros.h>
@@ -109,6 +108,7 @@
 #define	WARN_TIME	3600	/* seconds between utmp checks */
 #define	WTMPX_UFREQ	60	/* seconds between updating WTMPX's atime */
 #define	UTMPD_DOOR	"/var/run/utmpd_door"
+#define	ONE_DAY		(24 * 3600)
 
 
 /*
@@ -198,9 +198,9 @@ static int validate_default(char *defp, int *flag);
 
 /*
  * This process also runs a door server, listening for calls from the kernel
- * following a significant forwards clock step. When this is received, we go
- * through and rewrite the utmpx/wtmpx databases in each zone to adjust them
- * based on the new boot time.
+ * following a significant forwards clock step. When this is received, we
+ * rewrite the utmpx/wtmpx databases in the current zone to adjust it based on
+ * the new boot time.
  */
 static void door_server_init(void);
 
@@ -1203,29 +1203,17 @@ print_entry(struct utmpx *u, char context)
 }
 
 static void
-process_database(const char *dir, const char *dbfile, time_t ts)
+process_database(const char *dbfile, time_t ts)
 {
 	struct utmpx *u;
 	time_t start = 0;
 
-	dprintf(("Processing database %s/%s\n", dir, dbfile));
-
-	/*
-	 * Unfortunately, utmpxname(3C) and friends only work with file paths
-	 * up to 78 characters in length and the paths to zone roots can easily
-	 * exceed this. If a directory name is provided, chdir() and use the
-	 * provided relative path.
-	 */
-	if (chdir(dir) != 0) {
-		warn("could not change directory to %s", dir);
-		return;
-	}
+	dprintf(("Processing database %s\n", dbfile));
 
 	utmp_start();
 
 	if (utmpxname(dbfile) == 0) {
                 warn("Invalid database (see utmpxname(3C))");
-		(void) chdir("/");
 		utmp_end();
 		return;
 	}
@@ -1262,7 +1250,7 @@ process_database(const char *dir, const char *dbfile, time_t ts)
 			continue;
 		}
 
-		if (u->ut_tv.tv_sec - start > 86400)
+		if (u->ut_tv.tv_sec - start > ONE_DAY)
 			continue;
 
 		print_entry(u, '<');
@@ -1272,7 +1260,6 @@ process_database(const char *dir, const char *dbfile, time_t ts)
 	}
 
 out:
-	(void) chdir("/");
 	endutxent();
 	if (utmpxname(UTMPX_FILE) == 0) {
 		errx(EXIT_FAILURE, "Failed to restore default utmpx file %s",
@@ -1282,89 +1269,13 @@ out:
 }
 
 static void
-process_zone(char *zonename, time_t boot_ts)
-{
-	zoneid_t zid;
-	char zoneroot[MAXPATHLEN] = "/";
-	static const char *files[] = { "var/adm/wtmpx", "var/adm/utmpx" };
-	uint_t i;
-
-	zid = getzoneidbyname(zonename);
-
-	if (zid == -1)
-		return;
-
-	if (zid != GLOBAL_ZONEID) {
-		int ret;
-
-		ret = zone_get_rootpath(zonename, zoneroot, sizeof (zoneroot));
-		if (ret != Z_OK)
-			return;
-	}
-	for (i = 0; i < ARRAY_SIZE(files); i++)
-		process_database(zoneroot, files[i], boot_ts);
-}
-
-static void
-process_zones(time_t boot_ts)
-{
-	uint_t nzids, nzids_alloced;
-	zoneid_t *zids;
-	uint_t i;
-
-	if (zone_list(NULL, &nzids) != 0) {
-		err(EXIT_FAILURE, "failed to get zone ID list");
-		return;
-	}
-
-	if (nzids == 0) {
-		dprintf(("No zones in system.\n"));
-		return;
-	}
-
-	zids = NULL;
-	nzids_alloced = 0;
-	do {
-		zoneid_t *newzids;
-
-		newzids = recallocarray(zids, nzids_alloced,
-		    nzids, sizeof (zoneid_t));
-
-		if (newzids == NULL) {
-			free(zids);
-			err(EXIT_FAILURE,
-			    "failed to allocate memory for zone list");
-		}
-
-		zids = newzids;
-		nzids_alloced = nzids;
-
-		if (zone_list(zids, &nzids) != 0)
-			err(EXIT_FAILURE, "failed to get zone list");
-	} while (nzids != nzids_alloced);
-
-	for (i = 0; i < nzids; i++) {
-		char name[ZONENAME_MAX];
-
-		if (getzonenamebyid(zids[i], name, sizeof (name)) < 0) {
-			/*
-			 * The zone may have shut down since we retrieved
-			 * the list.
-			 */
-			continue;
-		}
-		process_zone(name, boot_ts);
-	}
-
-	free(zids);
-}
-
-static void
 door_server(void *cookie __unused, char *argp, size_t sz,
     door_desc_t *dp __unused, uint_t ndesc __unused)
 {
 	ucred_t *uc = NULL;
 	pid_t pid;
+	static const char *tmpxdbs[] = { "/var/adm/wtmpx", "/var/adm/utmpx" };
+	uint_t i;
 
 	dprintf(("Door request received, size %zu.\n", sz));
 
@@ -1385,7 +1296,8 @@ door_server(void *cookie __unused, char *argp, size_t sz,
 
 		boot_ts = *(time_t *)(uintptr_t)argp;
 		dprintf(("Boot timestamp: %ld\n", boot_ts));
-		process_zones(boot_ts);
+		for (i = 0; i < ARRAY_SIZE(tmpxdbs); i++)
+			process_database(tmpxdbs[i], boot_ts);
 	}
 
 out:

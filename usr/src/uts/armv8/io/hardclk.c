@@ -37,12 +37,16 @@
 #include <sys/archsystm.h>
 #include <sys/lockstat.h>
 
+#include <sys/brand.h>
 #include <sys/clock.h>
 #include <sys/door.h>
 #include <sys/debug.h>
 #include <sys/smp_impldefs.h>
 #include <sys/rtc.h>
 #include <sys/zone.h>
+
+#define	DOOR_PATH	"var/run/utmpd_door"
+#define	ONE_DAY		(24 * 3600)
 
 /*
  * This file contains all generic part of clock and timer handling.
@@ -53,6 +57,65 @@ tod_ops_t tod_ops;
 char *tod_module_name;		/* Settable in /etc/system */
 
 extern void tod_set_prev(timestruc_t);
+
+static int
+process_zone_cb(zone_t *zone, void *arg)
+{
+	door_handle_t door;
+	zoneid_t zid;
+	int ret;
+	time_t boot_ts;
+	size_t dplen;
+	char *door_path;
+
+	/* ignore non-native zone brands */
+	if (ZONE_IS_BRANDED(zone))
+		return (0);
+
+	boot_ts = *(time_t *)(uintptr_t)arg;
+	dplen = zone->zone_rootpathlen + strlen(DOOR_PATH);
+	door_path = kmem_alloc(dplen, KM_SLEEP);
+
+	if (snprintf(door_path, dplen, "%s%s", zone->zone_rootpath,
+	    DOOR_PATH) >= dplen) {
+		goto out;
+	}
+
+	ret = door_ki_open(door_path, &door);
+	if (ret != 0) {
+		cmn_err(CE_WARN, "Time has stepped forwards; "
+		    "failed to open door to utmpd for zone %s, err %d",
+		    zone->zone_name, ret);
+
+		goto out;
+	}
+
+	door_arg_t darg = {
+		.data_ptr = (void *)&boot_ts,
+		.data_size = sizeof (boot_ts),
+	};
+
+	ret = door_ki_upcall_limited(door, &darg, NULL, 0, 0);
+	if (ret == 0) {
+		cmn_err(CE_CONT, "?Time has stepped forwards; "
+		    "successfully notified utmpd for zone %s.\n",
+		    zone->zone_name);
+	} else {
+		cmn_err(CE_WARN, "Time has stepped forwards; "
+		    "failed upcall to utmpd for zone %s, err %d",
+		    zone->zone_name, ret);
+	}
+
+	door_ki_rele(door);
+
+out:
+	kmem_free(door_path, dplen);
+	/*
+	 * Since we want to keep going if a zone is not running utmpd
+	 * for any reason, always return 0 here.
+	 */
+	return (0);
+}
 
 void
 tod_set(timestruc_t ts)
@@ -81,7 +144,7 @@ tod_set(timestruc_t ts)
 		time_t adj = ts.tv_sec - hrestime.tv_sec;
 		extern time_t boot_time;
 
-		if (adj < 86400)
+		if (adj < ONE_DAY)
 			return;
 
 		if (boot_time < INT64_MAX - adj)
@@ -90,39 +153,13 @@ tod_set(timestruc_t ts)
 		zone_boottime_adjust(adj);
 
 		/*
-		 * Call up to the utmpd process and ask it to go through and
-		 * rewrite the utmpx and wtmpx databases for all zones since
-		 * the time has stepped forward. We drop tod_lock for this as
-		 * it can take a while.
+		 * Call up to each zone's utmpd process and ask it to rewrite
+		 * the utmpx and wtmpx database since the time has stepped
+		 * forward. We drop tod_lock as this can take a while.
 		 */
-		char *door_path = "/var/run/utmpd_door";
-		door_handle_t door;
-		time_t boot_ts;
-		int ret;
-
-		boot_ts = boot_time;
+		time_t boot_ts = boot_time;
 		mutex_exit(&tod_lock);
-		ret = door_ki_open(door_path, &door);
-		if (ret == 0) {
-			door_arg_t arg = {
-				.data_ptr = (void *)&boot_ts,
-				.data_size = sizeof (boot_ts)
-			};
-
-			ret = door_ki_upcall_limited(door, &arg, NULL, 0, 0);
-			if (ret == 0) {
-				cmn_err(CE_NOTE, "Time has stepped forwards; "
-				    "successfully notified utmpd.");
-			} else {
-				cmn_err(CE_WARN, "Time has stepped forwards; "
-				    "failed upcall to utmpd, err %d", ret);
-			}
-			door_ki_rele(door);
-		} else {
-			cmn_err(CE_WARN, "Time has stepped forwards; "
-			    "failed to open door to utmpd, err %d", ret);
-		}
-
+		(void) zone_walk(process_zone_cb, &boot_ts);
 		mutex_enter(&tod_lock);
 	}
 }

@@ -37,7 +37,6 @@ include ../Makefile.ctf
 ROOTMANIFESTDIR = $(ROOTSVCSYSTEM)
 
 FILEMODE = 555
-LDLIBS += -lzonecfg
 
 .KEEP_STATE:
 
