@@ -39,6 +39,7 @@
 #include <kmdb/kmdb_io.h>
 #include <kmdb/kaif_start.h>
 #include <kmdb/kvm_isadep.h>
+#include <kmdb/kmdb_asmutil.h>
 
 #include <mdb/mdb_err.h>
 #include <mdb/mdb_debug.h>
@@ -237,6 +238,8 @@ kaif_brkpt_arm(uintptr_t addr, mdb_instr_t *instrp)
 	    sizeof (mdb_instr_t), addr) != sizeof (mdb_instr_t))
 		return (-1); /* errno is set for us */
 
+	flush_instr(addr);
+
 	return (0);
 }
 
@@ -246,6 +249,8 @@ kaif_brkpt_disarm(uintptr_t addr, mdb_instr_t instrp)
 	if (mdb_tgt_awrite(mdb.m_target, MDB_TGT_AS_VIRT_I, &instrp,
 	    sizeof (mdb_instr_t), addr) != sizeof (mdb_instr_t))
 		return (-1); /* errno is set for us */
+
+	flush_instr(addr);
 
 	return (0);
 }
@@ -446,8 +451,13 @@ kaif_step(void)
 
 	kmdb_dpi_resume_master(); /* Run the next instruction and come back */
 
-	/* restore the single step setting and mask settings */
-	(void) kmdb_dpi_set_register("spsr", spsr);
+	/*
+	 * restore the single step setting and mask settings, leave the rest
+	 * of the status register alone.
+	 */
+	(void) kmdb_dpi_get_register("spsr", &spsr);
+	(void) kmdb_dpi_set_register("spsr",
+	    (spsr & ~(PSR_SS | PSR_I)) | PSR_D);
 	write_mdscr_el1(read_mdscr_el1() & ~MDSCR_SS);
 
 	return (0);

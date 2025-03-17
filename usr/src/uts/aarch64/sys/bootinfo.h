@@ -25,8 +25,8 @@
  */
 
 /*
- * Copyright 2024 Michael van der Westhuizen
  * Copyright 2020 Joyent, Inc.
+ * Copyright 2025 Michael van der Westhuizen
  */
 
 #ifndef	_SYS_BOOTINFO_H
@@ -39,6 +39,7 @@ extern "C" {
 #define	MAX_BOOT_MODULES	99
 
 typedef enum {
+	XBI_BSVC_UART_NONE	= 0x0,
 	XBI_BSVC_UART_PL011	= 0x0003,
 	XBI_BSVC_UART_SBSA2X	= 0x000d,
 	XBI_BSVC_UART_SBSA	= 0x000e,
@@ -104,6 +105,7 @@ struct xboot_info {
 	uint32_t		bi_psci_cpu_off_id;
 	uint32_t		bi_psci_cpu_on_id;
 	uint32_t		bi_psci_migrate_id;
+	uint64_t		bi_framebuffer;
 };
 
 #ifdef	__cplusplus
