@@ -2047,6 +2047,25 @@ xhci_cleanup(xhci_t *xhcip)
 }
 
 static int
+xhci_probe(dev_info_t *dip)
+{
+	char *buf;
+
+	if (ddi_prop_lookup_string(DDI_DEV_T_ANY, dip, 0,
+	    OBP_STATUS, &buf) != DDI_SUCCESS) {
+		return (DDI_PROBE_SUCCESS);
+	}
+
+	if (strcmp(buf, "ok") != 0 && strcmp(buf, "okay") != 0) {
+		ddi_prop_free(buf);
+		return (DDI_PROBE_FAILURE);
+	}
+
+	ddi_prop_free(buf);
+	return (DDI_PROBE_SUCCESS);
+}
+
+static int
 xhci_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 {
 	int ret, inst, route;
@@ -2251,7 +2270,7 @@ static struct dev_ops xhci_dev_ops = {
 	0,				/* devo_refcnt */
 	xhci_getinfo,			/* devo_getinfo */
 	nulldev,			/* devo_identify */
-	nulldev,			/* devo_probe */
+	xhci_probe,			/* devo_probe */
 	xhci_attach,			/* devo_attach */
 	xhci_detach,			/* devo_detach */
 	nodev,				/* devo_reset */
