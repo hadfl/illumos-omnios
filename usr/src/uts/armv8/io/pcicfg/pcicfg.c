@@ -2215,7 +2215,7 @@ pcicfg_device_assign_readonly(dev_info_t *dip)
 				    &answer, &alen, mem_type, NDI_RA_PASS)
 				    != NDI_SUCCESS) {
 					DEBUG0("Failed to allocate 64b mem\n");
-					kmem_free(assigned, length);
+					ddi_prop_free(assigned);
 					return (PCICFG_NORESRC);
 				}
 
@@ -2233,7 +2233,7 @@ pcicfg_device_assign_readonly(dev_info_t *dip)
 				    &answer, &alen, mem_type, NDI_RA_PASS)
 				    != NDI_SUCCESS) {
 					DEBUG0("Failed to allocate 32b mem\n");
-					kmem_free(assigned, length);
+					ddi_prop_free(assigned);
 					return (PCICFG_NORESRC);
 				}
 
@@ -2247,14 +2247,14 @@ pcicfg_device_assign_readonly(dev_info_t *dip)
 				    &answer, &alen, NDI_RA_TYPE_IO, NDI_RA_PASS)
 				    != NDI_SUCCESS) {
 					DEBUG0("Failed to allocate I/O\n");
-					kmem_free(assigned, length);
+					ddi_prop_free(assigned);
 					return (PCICFG_NORESRC);
 				}
 
 				break;
 			default:
 				DEBUG0("Unknown register type\n");
-				kmem_free(assigned, length);
+				ddi_prop_free(assigned);
 				return (PCICFG_FAILURE);
 			} /* switch */
 		}
