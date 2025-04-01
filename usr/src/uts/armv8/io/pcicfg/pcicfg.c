@@ -475,12 +475,12 @@ pcicfg_configure(dev_info_t *devi, uint_t device, uint_t function,
 	int func;
 	dev_info_t *attach_point;
 	pci_bus_range_t *pci_bus_range;
-	int rv;
+	int rv = PCICFG_SUCCESS;
 	uint_t highest_bus, visited = 0;
 	int ari_mode = B_FALSE;
 	int max_function = PCI_MAX_FUNCTIONS;
 	int trans_device;
-	dev_info_t *new_device;
+	dev_info_t *new_device = NULL;
 	boolean_t is_pcie;
 
 	if (flags == PCICFG_FLAG_ENABLE_ARI)
@@ -3570,13 +3570,14 @@ pcicfg_probe_bridge(dev_info_t *new_child, ddi_acc_handle_t h, uint_t bus,
 	uint64_t max_bus;
 	uint8_t pcie_device_type = 0;
 	uint_t pf_mem_supported = 0;
-	dev_info_t *new_device;
+	dev_info_t *new_device = NULL;
 	int trans_device;
 	int ari_mode = B_FALSE;
 	int max_function = PCI_MAX_FUNCTIONS;
 
 	io_answer = io_base = io_alen = io_size = 0;
 	pf_mem_answer = pf_mem_base = pf_mem_size = pf_mem_alen = 0;
+	mem_answer = mem_base = mem_alen = mem_size = 0;
 
 	/*
 	 * Set "device_type" to "pci", the actual type will be set later

@@ -52,15 +52,6 @@ INSTALL_TARGET	= $(BINARY) $(ROOTMODULE)
 #
 LDFLAGS		+= -Nmisc/busra -Nmisc/pcie
 
-#
-# For now, disable these warnings; maintainers should endeavor
-# to investigate and remove these for maximum coverage.
-# Please do not carry these forward to new Makefiles.
-#
-
-CERRWARN	+= -_gcc=-Wno-unused-function
-CERRWARN	+= $(CNOWARN_UNINIT)
-
 # needs work
 $(OBJS_DIR)/pcicfg.o := SMOFF += deref_check
 
