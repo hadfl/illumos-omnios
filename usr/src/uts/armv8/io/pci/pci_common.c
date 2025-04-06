@@ -1373,7 +1373,7 @@ pci_config_rd32(ddi_acc_impl_t *hdlp, uint32_t *addr)
 
 	cfp = (pci_acc_cfblk_t *)hdlp->ahi_common.ah_bus_private;
 
-	rval = pci_cfgacc_get16(cfp->c_rootdip,
+	rval = pci_cfgacc_get32(cfp->c_rootdip,
 	    PCI_GETBDF(cfp->c_busnum, cfp->c_devnum, cfp->c_funcnum),
 	    reg);
 
