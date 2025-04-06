@@ -66,6 +66,7 @@
 #include <sys/mach_intr.h>
 #include <vm/hat_aarch64.h>
 #include <sys/obpdefs.h>
+#include <sys/framebuffer.h>
 
 size_t dma_max_copybuf_size = 0x101000;		/* 1M + 4K */
 uint64_t ramdisk_start, ramdisk_end;
@@ -2341,10 +2342,97 @@ get_boot_properties(void)
 	kmem_free(bop_staging_area, MMU_PAGESIZE);
 }
 
+/*
+ * Copy console font to kernel memory. The temporary font setup
+ * to use font module was done in early console setup, using low
+ * memory and data from font module. Now we need to allocate
+ * kernel memory and copy data over, so the low memory can be freed.
+ * We can have at most one entry in font list from early boot.
+ */
+static void
+get_console_font(void)
+{
+	struct fontlist *fp, *fl;
+	bitmap_data_t *bd;
+	struct font *fd, *tmp;
+	int i;
+
+	if (STAILQ_EMPTY(&fonts))
+		return;
+
+	fl = STAILQ_FIRST(&fonts);
+	STAILQ_REMOVE_HEAD(&fonts, font_next);
+	fp = kmem_zalloc(sizeof (*fp), KM_SLEEP);
+	bd = kmem_zalloc(sizeof (*bd), KM_SLEEP);
+	fd = kmem_zalloc(sizeof (*fd), KM_SLEEP);
+
+	fp->font_name = NULL;
+	fp->font_flags = FONT_BOOT;
+	fp->font_data = bd;
+
+	bd->width = fl->font_data->width;
+	bd->height = fl->font_data->height;
+	bd->uncompressed_size = fl->font_data->uncompressed_size;
+	bd->font = fd;
+
+	tmp = fl->font_data->font;
+	fd->vf_width = tmp->vf_width;
+	fd->vf_height = tmp->vf_height;
+	for (i = 0; i < VFNT_MAPS; i++) {
+		if (tmp->vf_map_count[i] == 0)
+			continue;
+		fd->vf_map_count[i] = tmp->vf_map_count[i];
+		fd->vf_map[i] = kmem_alloc(fd->vf_map_count[i] *
+		    sizeof (*fd->vf_map[i]), KM_SLEEP);
+		bcopy(tmp->vf_map[i], fd->vf_map[i], fd->vf_map_count[i] *
+		    sizeof (*fd->vf_map[i]));
+	}
+	fd->vf_bytes = kmem_alloc(bd->uncompressed_size, KM_SLEEP);
+	bcopy(tmp->vf_bytes, fd->vf_bytes, bd->uncompressed_size);
+	STAILQ_INSERT_HEAD(&fonts, fp, font_next);
+}
+
+/*
+ * If loader(7) has passed us a UEFI framebuffer we create a node for the
+ * efifb driver to attach to.
+ *
+ * Must be called after the DDI root node has been created.
+ */
+static void
+create_efifb(void)
+{
+	dev_info_t *xdip;
+	int err;
+	char *compatible[2];
+	char compat0[] = "efifb";
+	char compat1[] = "vgatext";
+
+	if (fb_info.paddr == 0 ||
+	    (fb_info.fb_type != FB_TYPE_INDEXED &&
+	    fb_info.fb_type != FB_TYPE_RGB))
+		return;
+
+	ndi_devi_alloc_sleep(ddi_root_node(), "efifb",
+	    (pnode_t)DEVI_SID_NODEID, &xdip);
+
+	compatible[0] = compat0;
+	compatible[1] = compat1;
+	err = ndi_prop_update_string_array(DDI_DEV_T_NONE, xdip,
+	    "compatible", compatible, 2);
+	VERIFY3U(err, ==, DDI_SUCCESS);
+
+	err = ndi_prop_update_string(DDI_DEV_T_NONE, xdip,
+	    OBP_DEVICETYPE, OBP_DISPLAY);
+	VERIFY3U(err, ==, DDI_SUCCESS);
+
+	err = ndi_devi_bind_driver(xdip, 0);
+	VERIFY3U(err, ==, NDI_SUCCESS);
+}
+
 void
 impl_setup_ddi(void)
 {
-	dev_info_t *xdip, *isa_dip;
+	dev_info_t *xdip;
 	rd_existing_t rd_mem_prop;
 	int err;
 
@@ -2365,6 +2453,16 @@ impl_setup_ddi(void)
 	 * Read in the properties from the boot.
 	 */
 	get_boot_properties();
+
+	/*
+	 * Copy console font if provided by boot.
+	 */
+	get_console_font();
+
+	/*
+	 * Create the UEFI framebuffer device tree node if appropriate.
+	 */
+	create_efifb();
 
 	/* do bus dependent probes. */
 	impl_bus_initialprobe();

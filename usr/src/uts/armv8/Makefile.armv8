@@ -226,6 +226,7 @@ DRV_KMODS += ns16550a
 DRV_KMODS += gictwo
 DRV_KMODS += gicthree
 DRV_KMODS += pl03one
+DRV_KMODS += efifb
 
 MISC_KMODS += pci_prd
 MISC_KMODS += pcicfg
@@ -243,4 +244,5 @@ DACF_KMODS += consconfig_dacf
 #
 #	'Misc' Modules (/kernel/misc):
 #
+MISC_KMODS += gfx_private
 MISC_KMODS += platmod

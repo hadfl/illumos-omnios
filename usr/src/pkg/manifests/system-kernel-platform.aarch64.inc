@@ -43,6 +43,7 @@ dir  path=platform/armv8/kernel/drv
 dir  path=platform/armv8/kernel/drv/$(ARCH)
 file path=platform/armv8/kernel/drv/$(ARCH)/arm_gtmr
 file path=platform/armv8/kernel/drv/$(ARCH)/ecam
+file path=platform/armv8/kernel/drv/$(ARCH)/efifb
 file path=platform/armv8/kernel/drv/$(ARCH)/gicthree
 file path=platform/armv8/kernel/drv/$(ARCH)/gictwo
 file path=platform/armv8/kernel/drv/$(ARCH)/ns16550a
@@ -51,6 +52,7 @@ file path=platform/armv8/kernel/drv/$(ARCH)/simple-bus
 file path=platform/armv8/kernel/drv/ns16550a.conf
 dir  path=platform/armv8/kernel/misc
 dir  path=platform/armv8/kernel/misc/$(ARCH)
+file path=platform/armv8/kernel/misc/$(ARCH)/gfx_private group=sys mode=0755
 file path=platform/armv8/kernel/misc/$(ARCH)/pci_prd mode=0755
 file path=platform/armv8/kernel/misc/$(ARCH)/pcie mode=0755
 file path=platform/armv8/kernel/misc/$(ARCH)/pcierc mode=0755
@@ -65,6 +67,7 @@ file path=usr/share/man/man4d/simple-bus.4d
 driver name=arm_gtmr alias=arm,armv8-timer
 driver name=devfdt perms="* 0400 root sys"
 driver name=ecam alias=pci-host-ecam-generic
+driver name=efifb
 driver name=gicthree alias=arm,gic-v3
 driver name=gictwo \
     alias=arm,cortex-a15-gic \

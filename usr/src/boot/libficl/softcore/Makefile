@@ -13,7 +13,7 @@
 # Copyright 2018 Toomas Soome <tsoome@me.com>
 #
 
-include $(SRC)/Makefile.master
+include $(SRC)/boot/Makefile.master
 
 install all: softcore.c
 
