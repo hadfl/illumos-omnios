@@ -2984,14 +2984,15 @@ pcicfg_device_on(ddi_acc_handle_t config_handle)
 	 * fast back-to-back, and addr. stepping?
 	 */
 	pci_config_put16(config_handle, PCI_CONF_COMM,
-	    pci_config_get16(config_handle, PCI_CONF_COMM) | 0x7);
+	    pci_config_get16(config_handle, PCI_CONF_COMM) |
+	    (PCI_COMM_IO | PCI_COMM_MAE | PCI_COMM_ME));
 }
 
 static void
 pcicfg_device_off(ddi_acc_handle_t config_handle)
 {
 	/*
-	 * Disable I/O and memory traffic through the bridge
+	 * Disable I/O, memory, and indeed everything else
 	 */
 	pci_config_put16(config_handle, PCI_CONF_COMM, 0x0);
 }
@@ -3962,12 +3963,12 @@ pf_setup_end:
 	 * Reset the secondary bus
 	 */
 	pci_config_put16(h, PCI_BCNF_BCNTRL,
-	    pci_config_get16(h, PCI_BCNF_BCNTRL) | 0x40);
+	    pci_config_get16(h, PCI_BCNF_BCNTRL) | PCI_BCNF_BCNTRL_RESET);
 
 	drv_usecwait(100);
 
 	pci_config_put16(h, PCI_BCNF_BCNTRL,
-	    pci_config_get16(h, PCI_BCNF_BCNTRL) & ~0x40);
+	    pci_config_get16(h, PCI_BCNF_BCNTRL) & ~PCI_BCNF_BCNTRL_RESET);
 
 	/*
 	 * Clear status bits
