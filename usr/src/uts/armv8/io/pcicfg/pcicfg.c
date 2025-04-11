@@ -669,7 +669,7 @@ next:
 cleanup:
 	/*
 	 * Clean up a partially created "probe state" tree.
-	 * There are no resources allocated to the in the
+	 * There are no resources allocated to the nodes in the
 	 * probe state.
 	 */
 
@@ -793,7 +793,7 @@ pcicfg_configure_ntbridge(dev_info_t *new_device, uint_t bus, uint_t device)
 
 	if (ndi_prop_update_int_array(DDI_DEV_T_NONE, new_device, "bus-range",
 	    bus_range, 2) != DDI_SUCCESS) {
-		DEBUG0("Cannot set ntbridge bus-range property");
+		DEBUG0("Cannot set ntbridge bus-range property\n");
 		return (rc);
 	}
 
@@ -815,7 +815,7 @@ pcicfg_configure_ntbridge(dev_info_t *new_device, uint_t bus, uint_t device)
 		rc = PCICFG_FAILURE;
 		return (rc);
 	}
-	DEBUG0("pcicfg: Success loading nontransparent bridge nexus driver..");
+	DEBUG0("pcicfg: Success loading nontransparent bridge nexus driver..\n");
 
 	/* Now set aside pci resource allocation requests for our children */
 	if (pcicfg_ntbridge_allocate_resources(new_device) != PCICFG_SUCCESS) {
@@ -1108,7 +1108,7 @@ pcicfg_ntbridge_configure_done(dev_info_t *dip)
 
 	if (ndi_prop_update_int_array(DDI_DEV_T_NONE, dip, "bus-range",
 	    new_bus_range, 2) != DDI_SUCCESS) {
-		DEBUG0("Failed to set bus-range property");
+		DEBUG0("Failed to set bus-range property\n");
 		entry->error = PCICFG_FAILURE;
 		return (PCICFG_FAILURE);
 	}
@@ -1745,7 +1745,7 @@ pcicfg_bridge_assign(dev_info_t *dip, void *hdl)
 
 		if (ndi_prop_update_int_array(DDI_DEV_T_NONE, dip,
 		    "bus-range", bus_range, 2) != DDI_SUCCESS) {
-			DEBUG0("Failed to set bus-range property");
+			DEBUG0("Failed to set bus-range property\n");
 			entry->error = PCICFG_FAILURE;
 			(void) pcicfg_config_teardown(&handle);
 			return (DDI_WALK_TERMINATE);
@@ -4141,8 +4141,9 @@ next:
 	 * (if any).
 	 */
 	(void) ndi_prop_remove(DDI_DEV_T_NONE, new_child, "available");
+
 	/*
-	 * if the bridge a slots, then preallocate. If not, assume static
+	 * if the bridge has slots, then preallocate. If not, assume static
 	 * configuration. Also check for preallocation limits and spit
 	 * warning messages appropriately (perhaps some can be in debug mode).
 	 */
@@ -4156,39 +4157,54 @@ next:
 		uint8_t highest_bus_reqd = new_bus +
 		    (num_slots * pcicfg_slot_busnums);
 #ifdef DEBUG
-		if (mem_end > mem_reqd)
+		if (mem_end > mem_reqd) {
 			DEBUG3("Memory space consumed by bridge more "
-			    "than planned for %d slot(s)(%" PRIx64 ",%"
-			    PRIx64 ")", num_slots, mem_answer, mem_end);
-		if (io_end > io_reqd)
+			    "than planned for %d slot(s) "
+			    "(%" PRIx64 ",%" PRIx64 ")\n",
+			    num_slots, mem_answer, mem_end);
+		}
+		if (io_end > io_reqd) {
 			DEBUG3("IO space consumed by bridge more than"
-			    " planned for %d slot(s)(%" PRIx64 ",%" PRIx64 ")",
+			    " planned for %d slot(s) "
+			    "(%" PRIx64 ",%" PRIx64 ")\n",
 			    num_slots, io_answer, io_end);
-		if (pf_mem_end > pf_mem_reqd)
+		}
+		if (pf_mem_end > pf_mem_reqd) {
 			DEBUG3("PF Memory space consumed by bridge"
-			    " more than planned for %d slot(s)(%" PRIx64 ",%"
-			    PRIx64 ")", num_slots, pf_mem_answer, pf_mem_end);
-		if (*highest_bus > highest_bus_reqd)
+			    " more than planned for %d slot(s) "
+			    "(%" PRIx64 ",%" PRIx64 ")\n",
+			    num_slots, pf_mem_answer, pf_mem_end);
+		}
+		if (*highest_bus > highest_bus_reqd) {
 			DEBUG3("Buses consumed by bridge more "
-			    "than planned for %d slot(s)(%x, %x)",
+			    "than planned for %d slot(s) (%x, %x)\n",
 			    num_slots, new_bus, *highest_bus);
+		}
 
-		if (mem_reqd > (mem_answer + mem_alen))
+		if (mem_reqd > (mem_answer + mem_alen)) {
 			DEBUG3("Memory space required by bridge more "
-			    "than available for %d slot(s)(%" PRIx64 ",%"
-			    PRIx64 ")", num_slots, mem_answer, mem_end);
-		if (io_reqd > (io_answer + io_alen))
+			    "than available for %d slot(s) "
+			    "(%" PRIx64 ",%" PRIx64 ")\n",
+			    num_slots, mem_answer, mem_end);
+		}
+		if (io_reqd > (io_answer + io_alen)) {
 			DEBUG3("IO space required by bridge more than"
-			    "available for %d slot(s)(%" PRIx64 ",%" PRIx64 ")",
+			    "available for %d slot(s) "
+			    "(%" PRIx64 ",%" PRIx64 ")\n",
 			    num_slots, io_answer, io_end);
-		if (pf_mem_reqd > (pf_mem_answer + pf_mem_alen))
+		}
+		if (pf_mem_reqd > (pf_mem_answer + pf_mem_alen)) {
 			DEBUG3("PF Memory space required by bridge"
-			    " more than available for %d slot(s)(%" PRIx64 ",%"
-			    PRIx64 ")", num_slots, pf_mem_answer, pf_mem_end);
-		if (highest_bus_reqd > max_bus)
+			    " more than available for %d slot(s) "
+			    "(%" PRIx64 ",%" PRIx64 ")\n",
+			    num_slots, pf_mem_answer, pf_mem_end);
+		}
+		if (highest_bus_reqd > max_bus) {
 			DEBUG3("Bus numbers required by bridge more "
-			    "than available for %d slot(s)(%x, %x)",
+			    "than available for %d slot(s) "
+			    "(%x, %x)\n",
 			    num_slots, new_bus, *highest_bus);
+		}
 #endif
 		mem_end = MAX((MIN(mem_reqd, (mem_answer + mem_alen))),
 		    mem_end);
@@ -4542,7 +4558,7 @@ pcicfg_config_setup(dev_info_t *dip, ddi_acc_handle_t *handle)
 		ret = PCICFG_NODEVICE;
 	} else {
 		if (tmp == 0) {
-			DEBUG0("Device Not Ready yet ?");
+			DEBUG0("Device Not Ready yet ?\n");
 			ret = PCICFG_NODEVICE;
 		} else {
 			DEBUG1("DEVICEFOUND, read %x\n", tmp);
