@@ -142,7 +142,7 @@ typedef enum {
 #define	PPB_DISABLE_MEMRANGE_BASE	0x9ff00000
 #define	PPB_DISABLE_MEMRANGE_LIMIT	0x100fffff
 
-static uchar_t max_dev_pci = 32;	/* PCI standard */
+static uchar_t max_dev_pci = PCI_MAX_DEVICES;
 int pci_boot_maxbus;
 
 int pci_boot_debug = 0;
