@@ -18,7 +18,8 @@
 include $(SRC)/boot/Makefile.master
 
 i386_SUBDIRS =
-aarch64_SUBDIRS = libmmio_uart libfdt libfdtutil libfdtuart
+aarch64_SUBDIRS = \
+	libmmio_uart libfdt libfdtutil libfdtuart libacpica libacpiuart
 
 SUBDIRS = libefi $($(MACH)_SUBDIRS) loader
 

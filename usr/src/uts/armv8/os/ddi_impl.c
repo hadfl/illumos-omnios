@@ -73,9 +73,6 @@ uint64_t ramdisk_start, ramdisk_end;
 
 static void impl_bus_initialprobe(void);
 static void impl_bus_reprobe(void);
-
-static void i_ddi_free_unitintr(unit_intr_t *);
-
 static void i_ddi_free_unitintr(unit_intr_t *);
 
 /*
@@ -3816,7 +3813,6 @@ impl_bus_initialprobe(void)
 		probe = probe->next;
 	}
 }
-
 
 /*
  * impl_bus_reprobe
