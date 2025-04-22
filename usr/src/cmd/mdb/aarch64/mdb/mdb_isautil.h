@@ -10,26 +10,31 @@
  */
 
 /*
- * Copyright 2023 Brian McKenzie
+ * Copyright 2025 Richard Lowe
  */
 
-/*
- * Private prototypes and definitions for the generic timer interface.
- */
-
-#ifndef __COMMON_ARCH_TIMER_PRIVATE_H
-#define	__COMMON_ARCH_TIMER_PRIVATE_H
+#ifndef _MDB_ISAUTIL_H
+#define	_MDB_ISAUTIL_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <sys/arch_timer.h>
+#include <mdb/mdb_aarch64util.h>
 
-extern void init_arch_timer(arch_timer_t type);
+typedef uint32_t mdb_instr_t;
+
+#define	mdb_isa_kregs		mdb_aarch64_kregs
+
+#define	mdb_isa_next		mdb_aarch64_next
+
+#define	mdb_isa_kvm_stack_iter	mdb_aarch64_kvm_stack_iter
+
+#define	mdb_isa_kvm_frame	mdb_aarch64_kvm_frame
+#define	mdb_isa_prev_callcheck	mdb_aarch64_prev_callcheck
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __COMMON_ARCH_TIMER_PRIVATE_H */
+#endif /* _MDB_ISAUTIL_H */
