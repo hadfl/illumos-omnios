@@ -18,106 +18,31 @@
 #include <sys/null.h>
 #include <sys/bootinfo.h>
 #include <sys/stdbool.h>
-#include <sys/efi.h>
 #include <sys/psci.h>
 #include <sys/acpi/platform/acsolaris.h>
 #include <sys/acpi/actypes.h>
 #include <sys/acpi/actbl.h>
+#include <sys/cpuinfo.h>
+#include <sys/controlregs.h>
+#include <sys/machparam.h>
 
 #include "dboot.h"
+#include "dboot_printf.h"
+
+#if !defined(ACPI_MADT_ONLINE_CAPABLE)
+#define	ACPI_MADT_ONLINE_CAPABLE	(1 << 3)
+#endif
 
 extern void boot_psci_init(struct xboot_info *);
-
-static efi_guid_t acpi2 = EFI_ACPI_TABLE_GUID;
-
-
-static const EFI_SYSTEM_TABLE64 *
-get_uefi_systab(void)
-{
-	EFI_SYSTEM_TABLE64 *st;
-	extern struct xboot_info *bi;
-
-	if (bi->bi_uefi_systab == 0)
-		return (NULL);
-
-	st = (EFI_SYSTEM_TABLE64 *)bi->bi_uefi_systab;
-
-	if (st->Hdr.Signature != EFI_SYSTEM_TABLE_SIGNATURE)
-		return (NULL);
-
-	if (st->Hdr.Revision < EFI_REV(2, 5))
-		return (NULL);
-
-	return (st);
-}
-
-static bool
-same_guids(efi_guid_t *g1, efi_guid_t *g2)
-{
-	size_t i;
-
-	if (g1->time_low != g2->time_low)
-		return (false);
-	if (g1->time_mid != g2->time_mid)
-		return (false);
-	if (g1->time_hi_and_version != g2->time_hi_and_version)
-		return (false);
-	if (g1->clock_seq_hi_and_reserved != g2->clock_seq_hi_and_reserved)
-		return (false);
-	if (g1->clock_seq_low != g2->clock_seq_low)
-		return (false);
-	for (i = 0; i < 6; i++)
-		if (g1->node_addr[i] != g2->node_addr[i])
-			return (false);
-
-	return (true);
-}
-
-static const ACPI_TABLE_RSDP *
-get_acpi_rsdp(void)
-{
-	efi_guid_t vguid;
-	const EFI_SYSTEM_TABLE64 *st;
-	const EFI_CONFIGURATION_TABLE64 *cf;
-	const ACPI_TABLE_RSDP *rsdp;
-	UINT32 i;
-
-	if ((st = get_uefi_systab()) == NULL)
-		return (NULL);
-
-	cf = (const EFI_CONFIGURATION_TABLE64 *)st->ConfigurationTable;
-	if (cf == NULL)
-		return (NULL);
-
-	rsdp = NULL;
-
-	for (i = 0; i < st->NumberOfTableEntries; ++i) {
-		memcpy(&vguid, &cf[i].VendorGuid, sizeof (vguid));
-		if (same_guids(&vguid, &acpi2)) {
-			rsdp = (const ACPI_TABLE_RSDP *)cf[i].VendorTable;
-			break;
-		}
-	}
-
-	if (rsdp == NULL)
-		return (NULL);
-
-	if (strncmp(rsdp->Signature, ACPI_SIG_RSDP, strlen(ACPI_SIG_RSDP)) != 0)
-		return (NULL);
-
-	if (rsdp->Revision < 2)
-		return (NULL);
-
-	return (rsdp);
-}
 
 static const ACPI_TABLE_XSDT *
 get_acpi_xsdt(void)
 {
 	const ACPI_TABLE_RSDP *rsdp;
 	const ACPI_TABLE_XSDT *xsdt;
+	extern const void * dboot_uefi_get_acpi_rsdp(void);
 
-	if ((rsdp = get_acpi_rsdp()) == NULL)
+	if ((rsdp = dboot_uefi_get_acpi_rsdp()) == NULL)
 		return (NULL);
 
 	xsdt = (const ACPI_TABLE_XSDT *)rsdp->XsdtPhysicalAddress;
@@ -183,6 +108,146 @@ get_fadt(void)
 	return ((const ACPI_TABLE_FADT *)hdr);
 }
 
+static const ACPI_TABLE_MADT *
+get_madt(void)
+{
+	const ACPI_TABLE_HEADER *hdr;
+
+	if ((hdr = find_acpi_table(ACPI_SIG_MADT)) == NULL)
+		return (NULL);
+
+	return ((const ACPI_TABLE_MADT *)hdr);
+}
+
+static int
+fill_xcpuinfo(const ACPI_MADT_GENERIC_INTERRUPT *gicc,
+    struct xboot_cpu_info *xci)
+{
+	xci->xci_flags = 0;
+	if (gicc->Flags & ACPI_MADT_ENABLED)
+		xci->xci_flags |= CPUINFO_ENABLED;
+	if (gicc->Flags & ACPI_MADT_ONLINE_CAPABLE)
+		xci->xci_flags |= CPUINFO_ONLINE_CAPABLE;
+
+	xci->xci_mpidr = gicc->ArmMpidr;
+
+	if (gicc->ParkingVersion != 0) {
+		dboot_printf("dboot: PSCI is the only supported "
+		    "CPU enable method for ACPI systems");
+		return (-1);
+	}
+
+	xci->xci_ppver = CPUINFO_ENABLE_METHOD_PSCI;
+	xci->xci_parked_addr = 0;
+	xci->xci_cpuif = gicc->CpuInterfaceNumber;
+
+	return (0);
+}
+
+static int
+dboot_configure_acpi_cpuinfo(struct xboot_info *bi)
+{
+	const ACPI_TABLE_MADT *madt;
+	const ACPI_SUBTABLE_HEADER *item;
+	const ACPI_SUBTABLE_HEADER *end;
+	const ACPI_MADT_GENERIC_INTERRUPT *gicc;
+	struct xboot_cpu_info *xci;
+	uint64_t boot_cpu_affinity;
+
+	bi->bi_cpuinfo_cnt = 0;
+	if ((xci = (struct xboot_cpu_info *)bi->bi_cpuinfo) == NULL)
+		return (-1);
+
+	boot_cpu_affinity = (read_mpidr() & MPIDR_AFF_MASK);
+
+	if ((madt = get_madt()) == NULL)
+		return (-1);
+
+	end = (const ACPI_SUBTABLE_HEADER *)
+	    (madt->Header.Length + (uintptr_t)madt);
+
+	/*
+	 * We iterate the CPU list twice. On the first pass we match the
+	 * CPU we're running on (the boot CPU) and record it at index 0.
+	 *
+	 * On the second pass we match all other CPUs, recording them as
+	 * we discover them.
+	 */
+
+	item = (const ACPI_SUBTABLE_HEADER *)
+	    ((uintptr_t)madt + sizeof (*madt));
+
+	while (item < end) {
+		if (item->Type != ACPI_MADT_TYPE_GENERIC_INTERRUPT) {
+			item = (const ACPI_SUBTABLE_HEADER *)
+			    ((uintptr_t)item + item->Length);
+			continue;
+		}
+
+		gicc = (const ACPI_MADT_GENERIC_INTERRUPT *)item;
+		if (gicc->ArmMpidr != boot_cpu_affinity) {
+			item = (const ACPI_SUBTABLE_HEADER *)
+			    ((uintptr_t)item + item->Length);
+			continue;
+		}
+
+		if (fill_xcpuinfo(gicc, &xci[bi->bi_cpuinfo_cnt]) != 0) {
+			dboot_printf("dboot: error filling boot CPU info\n");
+			return (-1);
+		}
+
+		xci[bi->bi_cpuinfo_cnt].xci_id = bi->bi_cpuinfo_cnt;
+		bi->bi_cpuinfo_cnt++;
+		break;
+	}
+
+	if (bi->bi_cpuinfo_cnt != 1) {
+		dboot_printf("dboot: could not match boot processor in MADT\n");
+		return (-1);
+	}
+
+	/*
+	 * Second pass, populate APs.
+	 */
+
+	item = (const ACPI_SUBTABLE_HEADER *)
+	    ((uintptr_t)madt + sizeof (*madt));
+
+	while (item < end) {
+		if (item->Type != ACPI_MADT_TYPE_GENERIC_INTERRUPT) {
+			item = (const ACPI_SUBTABLE_HEADER *)
+			    ((uintptr_t)item + item->Length);
+			continue;
+		}
+
+		gicc = (const ACPI_MADT_GENERIC_INTERRUPT *)item;
+		if (gicc->ArmMpidr == boot_cpu_affinity) {
+			item = (const ACPI_SUBTABLE_HEADER *)
+			    ((uintptr_t)item + item->Length);
+			continue;
+		}
+
+		if (bi->bi_cpuinfo_cnt >= NCPU) {
+			dboot_printf("dboot: number of CPUs exceeds NCPU\n");
+			break;
+		}
+
+		if (fill_xcpuinfo(gicc, &xci[bi->bi_cpuinfo_cnt]) != 0) {
+			dboot_printf(
+			    "dboot: error filling application CPU info\n");
+			return (-1);
+		}
+
+		xci[bi->bi_cpuinfo_cnt].xci_id = bi->bi_cpuinfo_cnt;
+		bi->bi_cpuinfo_cnt++;
+
+		item = (const ACPI_SUBTABLE_HEADER *)
+		    ((uintptr_t)item + item->Length);
+	}
+
+	return (0);
+}
+
 int
 dboot_configure_acpi(void)
 {
@@ -202,5 +267,5 @@ dboot_configure_acpi(void)
 	bi->bi_psci_conduit_hvc = (flags & ACPI_FADT_PSCI_USE_HVC) ? 1 : 0;
 
 	boot_psci_init(bi);
-	return (0);
+	return (dboot_configure_acpi_cpuinfo(bi));
 }
