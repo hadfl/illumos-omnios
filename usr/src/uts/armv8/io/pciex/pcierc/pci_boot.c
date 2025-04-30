@@ -308,7 +308,7 @@ pci_setup_tree(dev_info_t *dip)
 	uint_t bus_prop_sz;
 
 	if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, dip,
-	    DDI_PROP_DONTPASS, "bus-range",
+	    DDI_PROP_DONTPASS, OBP_BUS_RANGE,
 	    &bus_prop, &bus_prop_sz) == DDI_SUCCESS) {
 		VERIFY3U(bus_prop_sz, ==, 2);
 		busrng[0] = bus_prop[0];
@@ -888,7 +888,7 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 		return;
 
 	rv = ddi_prop_lookup_int_array(DDI_DEV_T_ANY, dip, DDI_PROP_DONTPASS,
-	    "reg", &regp, &reglen);
+	    OBP_REG, &regp, &reglen);
 	if (rv != DDI_PROP_SUCCESS || reglen == 0)
 		return;
 	physhi = regp[0];
