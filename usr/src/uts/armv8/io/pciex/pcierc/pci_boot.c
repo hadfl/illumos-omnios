@@ -1950,7 +1950,7 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			} else {
 				uint32_t nbase;
 
-				cmn_err(CE_NOTE, "!" MSGHDR "BAR%u  "
+				cmn_err(CE_NOTE, MSGHDR "BAR%u  "
 				    "I/O REPROG 0x%x ~ 0x%x",
 				    ddi_node_name(rcdip), bus, dev, func,
 				    bar, base, len);
@@ -1961,7 +1961,7 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 				nbase &= PCI_BASE_IO_ADDR_M;
 
 				if (base != nbase) {
-					cmn_err(CE_NOTE, "!" MSGHDR "BAR%u  "
+					cmn_err(CE_NOTE, MSGHDR "BAR%u  "
 					    "I/O REPROG 0x%x ~ 0x%x "
 					    "FAILED READBACK 0x%x",
 					    ddi_node_name(rcdip), bus, dev,
@@ -2131,7 +2131,7 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			} else {
 				uint64_t nbase, nbase_hi = 0;
 
-				cmn_err(CE_NOTE, "!" MSGHDR "BAR%u "
+				cmn_err(CE_NOTE, MSGHDR "BAR%u "
 				    "%s%s REPROG 0x%lx ~ 0x%lx",
 				    ddi_node_name(rcdip), bus, dev, func, bar,
 				    pf ? "PMEM" : "MEM",
@@ -2152,7 +2152,7 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 				nbase &= PCI_BASE_M_ADDR_M;
 
 				if (base != nbase || base_hi != nbase_hi) {
-					cmn_err(CE_NOTE, "!" MSGHDR "BAR%u "
+					cmn_err(CE_NOTE, MSGHDR "BAR%u "
 					    "%s%s REPROG 0x%lx ~ 0x%lx "
 					    "FAILED READBACK 0x%lx",
 					    ddi_node_name(rcdip), bus, dev, func, bar,
