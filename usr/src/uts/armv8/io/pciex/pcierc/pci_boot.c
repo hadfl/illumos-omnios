@@ -251,8 +251,9 @@ static void add_ranges_prop(struct pci_bus_resource *, int, boolean_t);
 static void add_bus_available_prop(struct pci_bus_resource *, int);
 static void alloc_res_array(struct pci_bus_resource **);
 static void pci_memlist_remove_list(struct memlist **,struct memlist *);
-static void populate_bus_res(dev_info_t *, struct pci_bus_resource *pci_bus_res,
-    uchar_t bus);
+static void populate_bus_res(dev_info_t *, struct pci_bus_resource *,
+    uchar_t);
+static void pci_reprogram(dev_info_t *, struct pci_bus_resource *);
 
 static void
 dump_memlists_impl(struct pci_bus_resource *pci_bus_res, const char *tag,
@@ -288,7 +289,7 @@ dump_memlists_impl(struct pci_bus_resource *pci_bus_res, const char *tag,
 /*
  * Enumerate all PCI devices
  */
-void
+struct pci_bus_resource *
 pci_setup_tree(dev_info_t *dip)
 {
 	/* pci bus resource maps */
@@ -315,11 +316,7 @@ pci_setup_tree(dev_info_t *dip)
 		ddi_prop_free(bus_prop);
 	}
 
-	/* We have already run through this dip */
-	if (pci_bus_res[busrng[0]].dip != NULL) {
-		VERIFY3P(pci_bus_res[busrng[0]].dip, ==, dip);
-		return;
-	}
+	VERIFY3P(pci_bus_res[busrng[0]].dip, ==, NULL);
 
 	/*
 	 * The first bus is _our_ bus, others in the range
@@ -330,13 +327,18 @@ pci_setup_tree(dev_info_t *dip)
 	for (int i = busrng[0]; i <= busrng[1]; i++) {
 		enumerate_bus_devs(dip, i, pci_bus_res, CONFIG_INFO);
 	}
+
+	return (pci_bus_res);
 }
 
 void
 pci_enumerate(dev_info_t *dip)
 {
+	struct pci_bus_resource *pbr;
+
 	pci_boot_maxbus = pci_prd_max_bus();
-	pci_setup_tree(dip);
+	pbr = pci_setup_tree(dip);
+	pci_reprogram(dip, pbr);
 }
 
 /*
@@ -1928,16 +1930,12 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 		}
 
 		if (op == CONFIG_INFO) {	/* first pass */
-			/* take out of the resource map of the bus */
-			if (base != 0) {
-				(void) pci_memlist_remove(io_avail, base, len);
-				pci_memlist_insert(io_used, base, len);
-			} else {
-				reprogram = 1;
-			}
 			dcmn_err(CE_NOTE,
-			    MSGHDR "BAR%u  I/O FWINIT 0x%x ~ 0x%x",
-			    ddi_node_name(rcdip), bus, dev, func, bar, base, len);
+			    MSGHDR "BAR%u I/O FWINIT 0x%x ~ 0x%x "
+			    "(ignored)", ddi_node_name(rcdip),
+			    bus, dev, func, bar, base, len);
+
+			reprogram = 1;
 			pci_bus_res[bus].io_size += len;
 		} else if ((*io_avail != NULL && base == 0) ||
 		    pci_bus_res[bus].io_reprogram) {
@@ -2058,43 +2056,26 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 		fbase = (((uint64_t)base_hi) << 32) | base;
 		if (op == CONFIG_INFO) {
 			dcmn_err(CE_NOTE,
-			    MSGHDR "BAR%u %sMEM FWINIT 0x%lx ~ 0x%lx%s",
+			    MSGHDR "BAR%u %sMEM FWINIT 0x%lx ~ 0x%lx%s (ignored)",
 			    ddi_node_name(rcdip), bus, dev, func, bar,
 			    (phys_hi & PCI_PREFETCH_B) ? "P" : " ",
 			    fbase, len,
 			    *bar_sz == PCI_BAR_SZ_64 ? " (64-bit)" : "");
 
-			/* take out of the resource map of the bus */
-			if (fbase != 0) {
-				/* remove from PMEM and MEM space */
-				(void) pci_memlist_remove(mem_avail, fbase,
-				    len);
-				(void) pci_memlist_remove(pmem_avail, fbase,
-				    len);
-				/* only note as used in correct map */
-				if ((phys_hi & PCI_PREFETCH_B) != 0) {
-					pci_memlist_insert(pmem_used, fbase,
-					    len);
-				} else {
-					pci_memlist_insert(mem_used, fbase,
-					    len);
-				}
-			} else {
-				reprogram = 1;
-				/*
-				 * If we need to reprogram this because we
-				 * don't have a BAR assigned, we need to
-				 * actually increase the amount of memory that
-				 * we request to take into account alignment.
-				 * This is a bit gross, but by doubling the
-				 * request size we are more likely to get the
-				 * size that we need. A more involved fix would
-				 * require a smarter and more involved
-				 * allocator (something we will need
-				 * eventually).
-				 */
-				len *= 2;
-			}
+			reprogram = 1;
+			/*
+			 * If we need to reprogram this because we
+			 * don't have a BAR assigned, we need to
+			 * actually increase the amount of memory that
+			 * we request to take into account alignment.
+			 * This is a bit gross, but by doubling the
+			 * request size we are more likely to get the
+			 * size that we need. A more involved fix would
+			 * require a smarter and more involved
+			 * allocator (something we will need
+			 * eventually).
+			 */
+			len *= 2;
 
 			if (phys_hi & PCI_PREFETCH_B)
 				pci_bus_res[bus].pmem_size += len;
@@ -2422,7 +2403,6 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip,
 {
 	char *dev_type;
 	int i;
-	uint_t cmd_reg;
 	struct {
 		uint64_t base;
 		uint64_t limit;
@@ -2503,100 +2483,35 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip,
 	 * prefetchable memory.
 	 */
 
-	cmd_reg = pci_cfgacc_get16(rcdip, PCI_GETBDF(bus, dev, func),
-	    PCI_CONF_COMM);
 	fetch_ppb_res(rcdip, bus, dev, func, RES_IO, &io.base, &io.limit);
 	fetch_ppb_res(rcdip, bus, dev, func, RES_MEM, &mem.base, &mem.limit);
 	fetch_ppb_res(rcdip, bus, dev, func, RES_PMEM, &pmem.base, &pmem.limit);
 
 	if (pci_boot_debug != 0) {
-		dcmn_err(CE_NOTE, MSGHDR " I/O FWINIT 0x%lx ~ 0x%lx%s",
+		dcmn_err(CE_NOTE, MSGHDR " I/O FWINIT 0x%lx ~ 0x%lx%s (ignored)",
 		    ddi_node_name(dip), bus, dev, func, io.base, io.limit,
 		    io.base > io.limit ? " (disabled)" : "");
-		dcmn_err(CE_NOTE, MSGHDR " MEM FWINIT 0x%lx ~ 0x%lx%s",
+		dcmn_err(CE_NOTE, MSGHDR " MEM FWINIT 0x%lx ~ 0x%lx%s (ignored)",
 		    ddi_node_name(dip), bus, dev, func, mem.base, mem.limit,
 		    mem.base > mem.limit ? " (disabled)" : "");
-		dcmn_err(CE_NOTE, MSGHDR "PMEM FWINIT 0x%lx ~ 0x%lx%s",
+		dcmn_err(CE_NOTE, MSGHDR "PMEM FWINIT 0x%lx ~ 0x%lx%s (ignored)",
 		    ddi_node_name(dip), bus, dev, func, pmem.base, pmem.limit,
 		    pmem.base > pmem.limit ? " (disabled)" : "");
 	}
 
-	/*
-	 * I/O range
-	 *
-	 * If the command register I/O enable bit is not set then we assume
-	 * that the I/O windows have been left unconfigured by system firmware.
-	 * In that case we leave it disabled and additionally set base > limit
-	 * to indicate there are there are no initial resources available and
-	 * to trigger later reconfiguration.
-	 */
-	if ((cmd_reg & PCI_COMM_IO) == 0) {
-		io.base = PPB_DISABLE_IORANGE_BASE;
-		io.limit = PPB_DISABLE_IORANGE_LIMIT;
-		set_ppb_res(rcdip, pci_bus_res[bus].dip, bus, dev, func, RES_IO,
-		    io.base, io.limit);
-	} else if (io.base < io.limit) {
-		uint64_t size = io.limit - io.base + 1;
+	io.base = PPB_DISABLE_IORANGE_BASE;
+	io.limit = PPB_DISABLE_IORANGE_LIMIT;
+	set_ppb_res(rcdip, dip, bus, dev, func, RES_IO, io.base, io.limit);
 
-		pci_memlist_insert(&pci_bus_res[secbus].io_avail, io.base,
-		    size);
-		pci_memlist_insert(&pci_bus_res[bus].io_used, io.base, size);
+	mem.base = PPB_DISABLE_MEMRANGE_BASE;
+	mem.limit = PPB_DISABLE_MEMRANGE_LIMIT;
+	set_ppb_res(rcdip, dip, bus, dev, func, RES_MEM, mem.base,
+	    mem.limit);
 
-		if (pci_bus_res[bus].io_avail != NULL) {
-			(void) pci_memlist_remove(&pci_bus_res[bus].io_avail,
-			    io.base, size);
-		}
-	}
-
-	/*
-	 * Memory range
-	 *
-	 * It is possible that the mem range will also have been left
-	 * unconfigured by system firmware. As for the I/O range, we check for
-	 * this by looking at the relevant bit in the command register (Memory
-	 * Access Enable in this case) but we also check if the base address is
-	 * 0, indicating that it is still at PCIe defaults. While 0 technically
-	 * could be a valid base address, it is unlikely.
-	 */
-	if ((cmd_reg & PCI_COMM_MAE) == 0 || mem.base == 0) {
-		mem.base = PPB_DISABLE_MEMRANGE_BASE;
-		mem.limit = PPB_DISABLE_MEMRANGE_LIMIT;
-		set_ppb_res(rcdip, pci_bus_res[bus].dip, bus, dev, func,
-		    RES_MEM, mem.base, mem.limit);
-	} else if (mem.base < mem.limit) {
-		uint64_t size = mem.limit - mem.base + 1;
-
-		pci_memlist_insert(&pci_bus_res[secbus].mem_avail, mem.base,
-		    size);
-		pci_memlist_insert(&pci_bus_res[bus].mem_used, mem.base, size);
-		/* remove from parent resource list */
-		(void) pci_memlist_remove(&pci_bus_res[bus].mem_avail,
-		    mem.base, size);
-		(void) pci_memlist_remove(&pci_bus_res[bus].pmem_avail,
-		    mem.base, size);
-	}
-
-	/*
-	 * Prefetchable range - as per MEM range above.
-	 */
-	if ((cmd_reg & PCI_COMM_MAE) == 0 || pmem.base == 0) {
-		pmem.base = PPB_DISABLE_MEMRANGE_BASE;
-		pmem.limit = PPB_DISABLE_MEMRANGE_LIMIT;
-		set_ppb_res(rcdip, pci_bus_res[bus].dip, bus, dev, func,
-		    RES_PMEM, pmem.base, pmem.limit);
-	} else if (pmem.base < pmem.limit) {
-		uint64_t size = pmem.limit - pmem.base + 1;
-
-		pci_memlist_insert(&pci_bus_res[secbus].pmem_avail,
-		    pmem.base, size);
-		pci_memlist_insert(&pci_bus_res[bus].pmem_used, pmem.base,
-		    size);
-		/* remove from parent resource list */
-		(void) pci_memlist_remove(&pci_bus_res[bus].pmem_avail,
-		    pmem.base, size);
-		(void) pci_memlist_remove(&pci_bus_res[bus].mem_avail,
-		    pmem.base, size);
-	}
+	pmem.base = PPB_DISABLE_MEMRANGE_BASE;
+	pmem.limit = PPB_DISABLE_MEMRANGE_LIMIT;
+	set_ppb_res(rcdip, dip, bus, dev, func, RES_PMEM, pmem.base,
+	    pmem.limit);
 
 	/*
 	 * Add VGA legacy resources to the bridge's pci_bus_res if it
