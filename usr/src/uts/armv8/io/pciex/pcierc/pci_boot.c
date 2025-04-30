@@ -709,8 +709,8 @@ pci_memlist_range(struct memlist *list, mem_res_t type, uint64_t *basep,
 }
 
 static void
-set_ppb_res(dev_info_t *rcdip, uchar_t bus, uchar_t dev, uchar_t func,
-    mem_res_t type, uint64_t base, uint64_t limit)
+set_ppb_res(dev_info_t *rcdip, dev_info_t *dip, uchar_t bus, uchar_t dev,
+    uchar_t func, mem_res_t type, uint64_t base, uint64_t limit)
 {
 	char *tag;
 
@@ -789,11 +789,11 @@ set_ppb_res(dev_info_t *rcdip, uchar_t bus, uchar_t dev, uchar_t func,
 
 	if (base > limit) {
 		cmn_err(CE_NOTE, MSGHDR "DISABLE %4s range",
-		    "ppb", bus, dev, func, tag);
+		    ddi_node_name(dip), bus, dev, func, tag);
 	} else {
 		cmn_err(CE_NOTE,
 		    MSGHDR "PROGRAM %4s range 0x%lx ~ 0x%lx",
-		    "ppb", bus, dev, func, tag, base, limit);
+		    ddi_node_name(dip), bus, dev, func, tag, base, limit);
 	}
 }
 
@@ -928,7 +928,7 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 		    (uint16_t)cap_ptr + PCIE_LINKCTL);
 		if ((reg & PCIE_LINKCTL_LINK_DISABLE) != 0) {
 			dcmn_err(CE_NOTE, MSGHDR "link is disabled",
-			    "ppb", bus, dev, func);
+			    ddi_node_name(dip), bus, dev, func);
 			return;
 		}
 	}
@@ -944,7 +944,7 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 
 	dcmn_err(CE_NOTE, MSGHDR
 	    "secbus 0x%x existing sizes I/O 0x%x, MEM 0x%lx, PMEM 0x%lx",
-	    "ppb", bus, dev, func, secbus,
+	    ddi_node_name(dip), bus, dev, func, secbus,
 	    pci_bus_res[secbus].io_size, pci_bus_res[secbus].mem_size,
 	    pci_bus_res[secbus].pmem_size);
 
@@ -980,7 +980,7 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 				mem.size = buscount * PPB_MEM_ALIGNMENT * i;
 				dcmn_err(CE_NOTE, MSGHDR
 				    "Allocating %uMiB",
-				    "ppb", bus, dev, func, i);
+				    ddi_node_name(dip), bus, dev, func, i);
 				break;
 			}
 		}
@@ -1065,7 +1065,7 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 				cmn_err(CE_NOTE,
 				    MSGHDR "PROGRAM  I/O range 0x%lx ~ 0x%lx "
 				    "(subtractive bridge)",
-				    "ppb", bus, dev, func,
+				    ddi_node_name(dip), bus, dev, func,
 				    addr, addr + io.size - 1);
 			}
 		}
@@ -1083,7 +1083,7 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 				cmn_err(CE_NOTE,
 				    MSGHDR "PROGRAM  MEM range 0x%lx ~ 0x%lx "
 				    "(subtractive bridge)",
-				    "ppb", bus, dev, func,
+				    ddi_node_name(dip), bus, dev, func,
 				    addr, addr + mem.size - 1);
 			}
 		}
@@ -1164,8 +1164,8 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 
 		if (pci_bus_res[secbus].io_reprogram) {
 			/* reprogram PPB regs */
-			set_ppb_res(rcdip, bus, dev, func, RES_IO, io.base,
-			    io.limit);
+			set_ppb_res(rcdip, pci_bus_res[bus].dip, bus, dev, func,
+			    RES_IO, io.base, io.limit);
 			add_ranges_prop(pci_bus_res, secbus, B_TRUE);
 		}
 	}
@@ -1285,9 +1285,11 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 		}
 
 		if (pci_bus_res[secbus].mem_reprogram) {
-			set_ppb_res(rcdip, bus, dev, func,
+			set_ppb_res(rcdip, pci_bus_res[bus].dip,
+			    bus, dev, func,
 			    RES_MEM, mem.base, mem.limit);
-			set_ppb_res(rcdip, bus, dev, func,
+			set_ppb_res(rcdip, pci_bus_res[bus].dip,
+			    bus, dev, func,
 			    RES_PMEM, pmem.base, pmem.limit);
 			add_ranges_prop(pci_bus_res, secbus, B_TRUE);
 		}
@@ -1959,7 +1961,7 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			}
 			dcmn_err(CE_NOTE,
 			    MSGHDR "BAR%u  I/O FWINIT 0x%x ~ 0x%x",
-			    "pci", bus, dev, func, bar, base, len);
+			    ddi_node_name(rcdip), bus, dev, func, bar, base, len);
 			pci_bus_res[bus].io_size += len;
 		} else if ((*io_avail != NULL && base == 0) ||
 		    pci_bus_res[bus].io_reprogram) {
@@ -1967,13 +1969,14 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			if (base == 0) {
 				cmn_err(CE_WARN, MSGHDR "BAR%u I/O "
 				    "failed to find length 0x%x",
-				    "pci", bus, dev, func, bar, len);
+				    ddi_node_name(rcdip), bus, dev, func, bar,
+				    len);
 			} else {
 				uint32_t nbase;
 
 				cmn_err(CE_NOTE, "!" MSGHDR "BAR%u  "
 				    "I/O REPROG 0x%x ~ 0x%x",
-				    "pci", bus, dev, func,
+				    ddi_node_name(rcdip), bus, dev, func,
 				    bar, base, len);
 				pci_cfgacc_put32(rcdip, PCI_GETBDF(bus, dev, func),
 				    offset, base | type);
@@ -1985,8 +1988,8 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 					cmn_err(CE_NOTE, "!" MSGHDR "BAR%u  "
 					    "I/O REPROG 0x%x ~ 0x%x "
 					    "FAILED READBACK 0x%x",
-					    "pci", bus, dev, func,
-					    bar, base, len, nbase);
+					    ddi_node_name(rcdip), bus, dev,
+					    func, bar, base, len, nbase);
 					pci_cfgacc_put32(rcdip, PCI_GETBDF(bus, dev, func),
 					    offset, 0);
 					if (baseclass != PCI_CLASS_BRIDGE) {
@@ -2078,10 +2081,9 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 
 		fbase = (((uint64_t)base_hi) << 32) | base;
 		if (op == CONFIG_INFO) {
-
 			dcmn_err(CE_NOTE,
 			    MSGHDR "BAR%u %sMEM FWINIT 0x%lx ~ 0x%lx%s",
-			    "pci", bus, dev, func, bar,
+			    ddi_node_name(rcdip), bus, dev, func, bar,
 			    (phys_hi & PCI_PREFETCH_B) ? "P" : " ",
 			    fbase, len,
 			    *bar_sz == PCI_BAR_SZ_64 ? " (64-bit)" : "");
@@ -2149,13 +2151,13 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			if (fbase == 0) {
 				cmn_err(CE_WARN, MSGHDR "BAR%u MEM "
 				    "failed to find length 0x%lx",
-				    "pci", bus, dev, func, bar, len);
+				    ddi_node_name(rcdip), bus, dev, func, bar, len);
 			} else {
 				uint64_t nbase, nbase_hi = 0;
 
 				cmn_err(CE_NOTE, "!" MSGHDR "BAR%u "
 				    "%s%s REPROG 0x%lx ~ 0x%lx",
-				    "pci", bus, dev, func, bar,
+				    ddi_node_name(rcdip), bus, dev, func, bar,
 				    pf ? "PMEM" : "MEM",
 				    *bar_sz == PCI_BAR_SZ_64 ? "64" : "",
 				    fbase, len);
@@ -2177,7 +2179,7 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 					cmn_err(CE_NOTE, "!" MSGHDR "BAR%u "
 					    "%s%s REPROG 0x%lx ~ 0x%lx "
 					    "FAILED READBACK 0x%lx",
-					    "pci", bus, dev, func, bar,
+					    ddi_node_name(rcdip), bus, dev, func, bar,
 					    pf ? "PMEM" : "MEM",
 					    *bar_sz == PCI_BAR_SZ_64 ?
 					    "64" : "",
@@ -2533,13 +2535,13 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip,
 
 	if (pci_boot_debug != 0) {
 		dcmn_err(CE_NOTE, MSGHDR " I/O FWINIT 0x%lx ~ 0x%lx%s",
-		    "ppb", bus, dev, func, io.base, io.limit,
+		    ddi_node_name(dip), bus, dev, func, io.base, io.limit,
 		    io.base > io.limit ? " (disabled)" : "");
 		dcmn_err(CE_NOTE, MSGHDR " MEM FWINIT 0x%lx ~ 0x%lx%s",
-		    "ppb", bus, dev, func, mem.base, mem.limit,
+		    ddi_node_name(dip), bus, dev, func, mem.base, mem.limit,
 		    mem.base > mem.limit ? " (disabled)" : "");
 		dcmn_err(CE_NOTE, MSGHDR "PMEM FWINIT 0x%lx ~ 0x%lx%s",
-		    "ppb", bus, dev, func, pmem.base, pmem.limit,
+		    ddi_node_name(dip), bus, dev, func, pmem.base, pmem.limit,
 		    pmem.base > pmem.limit ? " (disabled)" : "");
 	}
 
@@ -2555,7 +2557,8 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip,
 	if ((cmd_reg & PCI_COMM_IO) == 0) {
 		io.base = PPB_DISABLE_IORANGE_BASE;
 		io.limit = PPB_DISABLE_IORANGE_LIMIT;
-		set_ppb_res(rcdip, bus, dev, func, RES_IO, io.base, io.limit);
+		set_ppb_res(rcdip, pci_bus_res[bus].dip, bus, dev, func, RES_IO,
+		    io.base, io.limit);
 	} else if (io.base < io.limit) {
 		uint64_t size = io.limit - io.base + 1;
 
@@ -2582,8 +2585,8 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip,
 	if ((cmd_reg & PCI_COMM_MAE) == 0 || mem.base == 0) {
 		mem.base = PPB_DISABLE_MEMRANGE_BASE;
 		mem.limit = PPB_DISABLE_MEMRANGE_LIMIT;
-		set_ppb_res(rcdip, bus, dev, func, RES_MEM, mem.base,
-		    mem.limit);
+		set_ppb_res(rcdip, pci_bus_res[bus].dip, bus, dev, func,
+		    RES_MEM, mem.base, mem.limit);
 	} else if (mem.base < mem.limit) {
 		uint64_t size = mem.limit - mem.base + 1;
 
@@ -2603,8 +2606,8 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip,
 	if ((cmd_reg & PCI_COMM_MAE) == 0 || pmem.base == 0) {
 		pmem.base = PPB_DISABLE_MEMRANGE_BASE;
 		pmem.limit = PPB_DISABLE_MEMRANGE_LIMIT;
-		set_ppb_res(rcdip, bus, dev, func, RES_PMEM, pmem.base,
-		    pmem.limit);
+		set_ppb_res(rcdip, pci_bus_res[bus].dip, bus, dev, func,
+		    RES_PMEM, pmem.base, pmem.limit);
 	} else if (pmem.base < pmem.limit) {
 		uint64_t size = pmem.limit - pmem.base + 1;
 
