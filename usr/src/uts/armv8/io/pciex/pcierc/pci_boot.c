@@ -1437,7 +1437,7 @@ find_resource(dev_info_t *rcdip, pci_prd_rsrc_t rsrc)
 
 	if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, rcdip,
 	    DDI_PROP_DONTPASS,  OBP_RANGES,
-	    (int **)&ranges, &rangelen) <= 0) {
+	    (int **)&ranges, &rangelen) != DDI_PROP_SUCCESS) {
 		dev_err(rcdip, CE_PANIC, "No ranges property");
 		return (NULL);
 	}
