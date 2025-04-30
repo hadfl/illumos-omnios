@@ -38,17 +38,6 @@
  *				reprogram any devices which were not set up by
  *				the system firmware. On this first call, the
  *				reprogram parameter is set to 0.
- *   add_pci_fixes()
- *	enumerate_bus_devs(CONFIG_FIX)
- *	    <foreach bus>
- *	        process_devfunc(CONFIG_FIX)
- *				Some devices need a specific action taking in
- *				order for subsequent enumeration to be
- *				successful. add_pci_fixes() retrieves the
- *				vendor and device IDs for each item on the bus
- *				and applies fixes as required. It also creates
- *				a list which is used by undo_pci_fixes() to
- *				reverse the process later.
  *   pci_setup_tree()
  *	enumerate_bus_devs(CONFIG_INFO)
  *	    <foreach bus>
@@ -98,10 +87,6 @@
  *				resources have been assigned to a device at
  *				this stage, then it is flagged for subsequent
  *				reprogramming.
- *     undo_pci_fixes()
- *				Any fixes which were applied in add_pci_fixes()
- *				are now undone before returning, using the
- *				undo list which was created earier.
  *
  * pci_enumerate(reprogram=1)
  *				The second bus enumeration pass is to take care
@@ -110,8 +95,6 @@
  *				during the first pass. This pass is bracketed
  *				by the same pci fix application and removal as
  *				the first.
- *   add_pci_fixes()
- *				As for first pass.
  *   pci_reprogram()
  *	pci_prd_root_complex_iter()
  *				The platform is asked to tell us of all root
@@ -160,8 +143,6 @@
  *				Finally, the 'available' properties is set on
  *				each device, representing that device's final
  *				unallocated (available) IO and memory ranges.
- *   undo_pci_fixes()
- *				As for first pass.
  */
 
 #include <sys/types.h>
@@ -195,7 +176,6 @@ typedef enum {
 	CONFIG_INFO,
 	CONFIG_UPDATE,
 	CONFIG_NEW,
-	CONFIG_FIX,
 } config_phase_t;
 
 #define	COMPAT_BUFSIZE	512
@@ -1550,9 +1530,6 @@ enumerate_bus_devs(dev_info_t *rcdip, uchar_t bus,
  	if (bus_debug(bus)) {
 		if (config_op == CONFIG_NEW) {
 			dcmn_err(CE_NOTE, "configuring pci bus 0x%x", bus);
-		} else if (config_op == CONFIG_FIX) {
-			dcmn_err(CE_NOTE,
-			    "fixing devices on pci bus 0x%x", bus);
 		} else {
 			dcmn_err(CE_NOTE, "enumerating pci bus 0x%x", bus);
 		}
@@ -1610,8 +1587,7 @@ enumerate_bus_devs(dev_info_t *rcdip, uchar_t bus,
 				nfunc = 8;
 			}
 
-			if (config_op == CONFIG_FIX ||
-			    config_op == CONFIG_INFO) {
+			if (config_op == CONFIG_INFO) {
 				/*
 				 * Create the node, unconditionally, on the
 				 * first pass only.  It may still need
