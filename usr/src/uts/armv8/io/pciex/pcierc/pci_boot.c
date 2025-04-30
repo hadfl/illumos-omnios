@@ -1294,8 +1294,7 @@ cmd_enable:
 void
 pci_reprogram(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res)
 {
-	int i, pci_reconfig = 1;
-	char *onoff;
+	int i;
 	int bus;
 
 	/*
@@ -1393,33 +1392,21 @@ pci_reprogram(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res)
 		setup_bus_res(pci_bus_res, i);
 	}
 
-	if (ddi_prop_lookup_string(DDI_DEV_T_ANY, ddi_root_node(),
-	    DDI_PROP_DONTPASS, "pci-reprog", &onoff) == DDI_SUCCESS) {
-		if (strcmp(onoff, "off") == 0) {
-			pci_reconfig = 0;
-			cmn_err(CE_NOTE, "pci device reprogramming disabled");
-		}
-		ddi_prop_free(onoff);
-	}
-
 	remove_subtractive_res(pci_bus_res);
 
 	/* reprogram the non-subtractive PPB */
-	if (pci_reconfig)
-		for (i = 0; i <= pci_boot_maxbus; i++)
-			fix_ppb_res(rcdip, pci_bus_res, i, B_FALSE);
+	for (i = 0; i <= pci_boot_maxbus; i++) {
+		fix_ppb_res(rcdip, pci_bus_res, i, B_FALSE);
+	}
 
 	for (i = 0; i <= pci_boot_maxbus; i++) {
-		/* configure devices not configured by firmware */
-		if (pci_reconfig) {
-			/*
-			 * Reprogram the subtractive PPB. At this time, all its
-			 * siblings should have got their resources already.
-			 */
-			if (pci_bus_res[i].subtractive)
-				fix_ppb_res(rcdip, pci_bus_res, i, B_TRUE);
-			enumerate_bus_devs(rcdip, i, pci_bus_res, CONFIG_NEW);
-		}
+		/*
+		 * Reprogram the subtractive PPB. At this time, all its
+		 * siblings should have got their resources already.
+		 */
+		if (pci_bus_res[i].subtractive)
+			fix_ppb_res(rcdip, pci_bus_res, i, B_TRUE);
+		enumerate_bus_devs(rcdip, i, pci_bus_res, CONFIG_NEW);
 	}
 
 	/* All dev programmed, so we can create available prop */
