@@ -220,6 +220,15 @@ typedef enum {
 #define	PPB_DISABLE_MEMRANGE_BASE	0x9ff00000
 #define	PPB_DISABLE_MEMRANGE_LIMIT	0x100fffff
 
+/*
+ * Value used to indicate that a bus hasn't yet been set.
+ *
+ * It being the maximum valid bus number seems like a problem but is not,
+ * because we're caring about the parent side of bridges.  If the parent is
+ * bus 255, there's no room for a child.
+ */
+#define	NO_PAR_BUS	(uchar_t)-1
+
 struct pci_devfunc {
 	struct pci_devfunc *next;
 	dev_info_t *dip;
@@ -420,7 +429,7 @@ setup_bus_res(struct pci_bus_resource *pci_bus_res, int bus)
 	 * root bus.
 	 */
 	par_bus = pci_bus_res[bus].par_bus;
-	if (par_bus != (uchar_t)-1) {
+	if (par_bus != NO_PAR_BUS) {
 		ASSERT(pci_bus_res[par_bus].bus_avail != NULL);
 		pci_memlist_remove_list(&pci_bus_res[par_bus].bus_avail,
 		    pci_bus_res[bus].bus_avail);
@@ -448,7 +457,7 @@ resolve_alloc_bus(struct pci_bus_resource *pci_bus_res, uchar_t bus,
 		if (type == RES_PMEM && pci_bus_res[bus].pmem_avail != NULL)
 			break;
 		/* Has the root bus been reached? */
-		if (pci_bus_res[bus].par_bus == (uchar_t)-1)
+		if (pci_bus_res[bus].par_bus == NO_PAR_BUS)
 			break;
 		bus = pci_bus_res[bus].par_bus;
 	}
@@ -473,7 +482,7 @@ get_per_bridge_avail(struct pci_bus_resource *pci_bus_res, uchar_t bus)
 	uchar_t par_bus;
 
 	par_bus = pci_bus_res[bus].par_bus;
-	while (par_bus != (uchar_t)-1) {
+	while (par_bus != NO_PAR_BUS) {
 		bus = par_bus;
 		par_bus = pci_bus_res[par_bus].par_bus;
 	}
@@ -871,7 +880,7 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 	boolean_t reprogram_io, reprogram_mem;
 
 	/* skip root (peer) PCI busses */
-	if (pci_bus_res[secbus].par_bus == (uchar_t)-1)
+	if (pci_bus_res[secbus].par_bus == NO_PAR_BUS)
 		return;
 
 	/* skip subtractive PPB when prog_sub is not TRUE */
@@ -1295,7 +1304,7 @@ pci_reprogram(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res)
 	 */
 	for (bus = 0; bus <= pci_boot_maxbus; bus++) {
 		/* skip non-root (peer) PCI busses */
-		if (pci_bus_res[bus].par_bus != (uchar_t)-1)
+		if (pci_bus_res[bus].par_bus != NO_PAR_BUS)
 			continue;
 
 		/*
@@ -1378,7 +1387,7 @@ pci_reprogram(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res)
 	/* add bus-range property for root/peer bus nodes */
 	for (i = 0; i <= pci_boot_maxbus; i++) {
 		/* create bus-range property on root/peer buses */
-		if (pci_bus_res[i].par_bus == (uchar_t)-1)
+		if (pci_bus_res[i].par_bus == NO_PAR_BUS)
 			add_bus_range_prop(pci_bus_res, i);
 
 		/* setup bus range resource on each bus */
@@ -1588,7 +1597,7 @@ enumerate_bus_devs(dev_info_t *rcdip, uchar_t bus,
 		int	par_bus;
 
 		par_bus = pci_bus_res[bus].par_bus;
-		while (par_bus != (uchar_t)-1) {
+		while (par_bus != NO_PAR_BUS) {
 			pci_bus_res[par_bus].io_size +=
 			    pci_bus_res[bus].io_size;
 			pci_bus_res[par_bus].mem_size +=
