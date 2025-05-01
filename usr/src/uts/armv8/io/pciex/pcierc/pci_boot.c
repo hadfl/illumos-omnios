@@ -265,6 +265,7 @@ static void pci_memlist_remove_list(struct memlist **,struct memlist *);
 static void populate_bus_res(dev_info_t *, struct pci_bus_resource *,
     uchar_t);
 static void pci_reprogram(dev_info_t *, struct pci_bus_resource *);
+static void dip_bus_range(dev_info_t *, int *);
 
 static void
 dump_memlists_impl(struct pci_bus_resource *pci_bus_res, const char *tag,
@@ -308,18 +309,9 @@ pci_setup_tree(dev_info_t *dip, struct pci_bus_resource *pci_bus_res)
 		pci_bus_res[i].sub_bus = i;
 	}
 
-	int busrng[] = { 0, pci_prd_max_bus() };
-	int *bus_prop;
-	uint_t bus_prop_sz;
+	int busrng[2];
 
-	if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, dip,
-	    DDI_PROP_DONTPASS, OBP_BUS_RANGE,
-	    &bus_prop, &bus_prop_sz) == DDI_SUCCESS) {
-		VERIFY3U(bus_prop_sz, ==, 2);
-		busrng[0] = bus_prop[0];
-		busrng[1] = bus_prop[1];
-		ddi_prop_free(bus_prop);
-	}
+	dip_bus_range(dip, busrng);
 
 	VERIFY3P(pci_bus_res[busrng[0]].dip, ==, NULL);
 
@@ -344,6 +336,28 @@ pci_enumerate(dev_info_t *dip)
 	alloc_res_array(&pci_bus_res);
 	pci_setup_tree(dip, pci_bus_res);
 	pci_reprogram(dip, pci_bus_res);
+}
+
+/*
+ * Retrieve, or default, the "bus-range" property.
+ */
+void
+dip_bus_range(dev_info_t *dip, int *busrng)
+{
+	int *bus_prop;
+	uint_t bus_prop_sz;
+
+	busrng[0] = 0;
+	busrng[1] = pci_prd_max_bus();
+
+	if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, dip,
+	    DDI_PROP_DONTPASS, OBP_BUS_RANGE,
+	    &bus_prop, &bus_prop_sz) == DDI_SUCCESS) {
+		VERIFY3U(bus_prop_sz, ==, 2);
+		busrng[0] = bus_prop[0];
+		busrng[1] = bus_prop[1];
+		ddi_prop_free(bus_prop);
+	}
 }
 
 /*
@@ -1421,6 +1435,20 @@ pci_reprogram(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res)
 static struct memlist *
 find_resource(dev_info_t *rcdip, pci_prd_rsrc_t rsrc)
 {
+	struct memlist *mlp = NULL;
+
+	/*
+	 * Take _BUS from "bus-range", anything else can be derived from
+	 * "ranges"
+	 */
+	if (rsrc == PCI_PRD_R_BUS) {
+		int busrng[2];
+
+		dip_bus_range(rcdip, busrng);
+		pci_memlist_insert(&mlp, busrng[0], busrng[1] - busrng[0]);
+		return (mlp);
+	}
+
 	pci_ranges_t *ranges;
 	uint_t rangelen;
 
@@ -1434,7 +1462,6 @@ find_resource(dev_info_t *rcdip, pci_prd_rsrc_t rsrc)
 	rangelen = CELLS_1275_TO_BYTES(rangelen);
 	rangelen /= sizeof (pci_ranges_t);
 
-	struct memlist *mlp = NULL;
 	int i;
 
 	for (i = 0; i < rangelen; i++) {
