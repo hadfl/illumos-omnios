@@ -177,19 +177,21 @@ typedef enum {
 	CONFIG_NEW,
 } config_phase_t;
 
-#define	COMPAT_BUFSIZE	512
-
 #define	PPB_IO_ALIGNMENT	0x1000		/* 4K aligned */
 #define	PPB_MEM_ALIGNMENT	0x100000	/* 1M aligned */
 
-/* round down to nearest power of two */
-#define	P2LE(align)					\
-	{						\
-		uint_t i = 0;				\
-		while (align >>= 1)			\
-			i++;				\
-		align = 1 << i;				\
-	}						\
+/* round down _at least once_ to nearest power of two */
+static inline uint_t
+lowerp2(uint_t align)
+{
+	uint_t i = 0;
+
+	while (align >>= 1) {
+		i++;
+	}
+
+	return (1 << i);
+}
 
 /*
  * Determining the size of a PCI BAR is done by writing all 1s to the base
@@ -289,17 +291,11 @@ dump_memlists_impl(struct pci_bus_resource *pci_bus_res, const char *tag,
 /*
  * Enumerate all PCI devices
  */
-struct pci_bus_resource *
-pci_setup_tree(dev_info_t *dip)
+static void
+pci_setup_tree(dev_info_t *dip, struct pci_bus_resource *pci_bus_res)
 {
-	/* pci bus resource maps */
-	struct pci_bus_resource *pci_bus_res = NULL;
-	uint_t i;
-
-	alloc_res_array(&pci_bus_res);
-
-	for (i = 0; i <= pci_boot_maxbus; i++) {
-		pci_bus_res[i].par_bus = (uchar_t)-1;
+	for (uint_t i = 0; i <= pci_boot_maxbus; i++) {
+		pci_bus_res[i].par_bus = NO_PAR_BUS;
 		pci_bus_res[i].sub_bus = i;
 	}
 
@@ -327,18 +323,18 @@ pci_setup_tree(dev_info_t *dip)
 	for (int i = busrng[0]; i <= busrng[1]; i++) {
 		enumerate_bus_devs(dip, i, pci_bus_res, CONFIG_INFO);
 	}
-
-	return (pci_bus_res);
 }
 
 void
 pci_enumerate(dev_info_t *dip)
 {
-	struct pci_bus_resource *pbr;
+	struct pci_bus_resource *pci_bus_res;
 
 	pci_boot_maxbus = pci_prd_max_bus();
-	pbr = pci_setup_tree(dip);
-	pci_reprogram(dip, pbr);
+
+	alloc_res_array(&pci_bus_res);
+	pci_setup_tree(dip, pci_bus_res);
+	pci_reprogram(dip, pci_bus_res);
 }
 
 /*
@@ -1004,12 +1000,9 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 	mem.size = P2ROUNDUP(mem.size, PPB_MEM_ALIGNMENT);
 	pmem.size = P2ROUNDUP(pmem.size, PPB_MEM_ALIGNMENT);
 
-	io.align = io.size;
-	P2LE(io.align);
-	mem.align = mem.size;
-	P2LE(mem.align);
-	pmem.align = pmem.size;
-	P2LE(pmem.align);
+	io.align = lowerp2(io.size);
+	mem.align = lowerp2(mem.size);
+	pmem.align = lowerp2(pmem.size);
 
 	/* Subtractive bridge */
 	if (pci_bus_res[secbus].subtractive && prog_sub) {
