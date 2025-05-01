@@ -646,50 +646,8 @@ get_pci_cap(dev_info_t *rcdip, uchar_t bus, uchar_t dev, uchar_t func,
 }
 
 /*
- * Does this resource element live in the legacy VGA range?
- */
-
-static boolean_t
-is_vga(struct memlist *elem, mem_res_t type)
-{
-	switch (type) {
-	case RES_IO:
-		if ((elem->ml_address == 0x3b0 && elem->ml_size == 0xc) ||
-		    (elem->ml_address == 0x3c0 && elem->ml_size == 0x20)) {
-			return (B_TRUE);
-		}
-		break;
-	case RES_MEM:
-		if (elem->ml_address == 0xa0000 && elem->ml_size == 0x20000)
-			return (B_TRUE);
-		break;
-	case RES_PMEM:
-		break;
-	}
-	return (B_FALSE);
-}
-
-/*
- * Does this entire resource list consist only of legacy VGA resources?
- */
-
-static boolean_t
-list_is_vga_only(struct memlist *l, mem_res_t type)
-{
-	if (l == NULL) {
-		return (B_FALSE);
-	}
-
-	do {
-		if (!is_vga(l, type))
-			return (B_FALSE);
-	} while ((l = l->ml_next) != NULL);
-	return (B_TRUE);
-}
-
-/*
- * Find the start and end addresses that cover the range for all list entries,
- * excluding legacy VGA addresses. Relies on the list being sorted.
+ * Find the start and end addresses that cover the range for all list entries
+ * Relies on the list being sorted.
  */
 static void
 pci_memlist_range(struct memlist *list, mem_res_t type, uint64_t *basep,
@@ -698,9 +656,6 @@ pci_memlist_range(struct memlist *list, mem_res_t type, uint64_t *basep,
 	*limitp = *basep = 0;
 
 	for (; list != NULL; list = list->ml_next) {
-		if (is_vga(list, type))
-			continue;
-
 		if (*basep == 0)
 			*basep = list->ml_address;
 
@@ -1100,10 +1055,6 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 	/*
 	 * Reprogram IO if:
 	 *
-	 *	- The list does not consist entirely of legacy VGA resources;
-	 *
-	 * and any of
-	 *
 	 *	- The parent bus is flagged for reprogramming;
 	 *	- IO space is currently disabled in the command register;
 	 *	- IO space is disabled via base/limit.
@@ -1111,8 +1062,7 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 	scratch_list = pci_memlist_dup(pci_bus_res[secbus].io_avail);
 	pci_memlist_merge(&pci_bus_res[secbus].io_used, &scratch_list);
 
-	reprogram_io = !list_is_vga_only(scratch_list, RES_IO) &&
-	    (pci_bus_res[parbus].io_reprogram ||
+	reprogram_io = (pci_bus_res[parbus].io_reprogram ||
 	    (cmd_reg & PCI_COMM_IO) == 0 ||
 	    io.base > io.limit);
 
@@ -1171,10 +1121,6 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 	/*
 	 * Reprogram memory if:
 	 *
-	 *	- The list does not consist entirely of legacy VGA resources;
-	 *
-	 * and any of
-	 *
 	 *	- The parent bus is flagged for reprogramming;
 	 *	- Mem space is currently disabled in the command register;
 	 *	- Both mem and pmem space are disabled via base/limit.
@@ -1186,8 +1132,7 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 	scratch_list = pci_memlist_dup(pci_bus_res[secbus].mem_avail);
 	pci_memlist_merge(&pci_bus_res[secbus].mem_used, &scratch_list);
 
-	reprogram_mem = !list_is_vga_only(scratch_list, RES_MEM) &&
-	    (pci_bus_res[parbus].mem_reprogram ||
+	reprogram_mem = (pci_bus_res[parbus].mem_reprogram ||
 	    (cmd_reg & PCI_COMM_MAE) == 0 ||
 	    (mem.base > mem.limit && pmem.base > pmem.limit));
 
@@ -2220,19 +2165,14 @@ add_reg_props(dev_info_t *rcdip, dev_info_t *dip,
 	ushort_t bar_sz, offset, end;
 	int max_basereg, reprogram = B_FALSE;
 
-	struct memlist **io_avail, **io_used;
 	struct memlist **mem_avail, **mem_used;
-	struct memlist **pmem_avail;
 
 	pci_regspec_t regs[16] = {{0}};
 	pci_regspec_t assigned[15] = {{0}};
 	int nreg, nasgn;
 
-	io_avail = &pci_bus_res[bus].io_avail;
-	io_used = &pci_bus_res[bus].io_used;
 	mem_avail = &pci_bus_res[bus].mem_avail;
 	mem_used = &pci_bus_res[bus].mem_used;
-	pmem_avail = &pci_bus_res[bus].pmem_avail;
 
 	dump_memlists(pci_bus_res, "add_reg_props start", bus);
 
@@ -2335,66 +2275,14 @@ add_reg_props(dev_info_t *rcdip, dev_info_t *dip,
 	/* add the three hard-decode, aliased address spaces for VGA */
 	if ((baseclass == PCI_CLASS_DISPLAY && subclass == PCI_DISPLAY_VGA) ||
 	    (baseclass == PCI_CLASS_NONE && subclass == PCI_NONE_VGA)) {
-
-		/* VGA hard decode 0x3b0-0x3bb */
-		regs[nreg].pci_phys_hi = assigned[nasgn].pci_phys_hi =
-		    (PCI_RELOCAT_B | PCI_ALIAS_B | PCI_ADDR_IO | devloc);
-		regs[nreg].pci_phys_low = assigned[nasgn].pci_phys_low = 0x3b0;
-		regs[nreg].pci_size_low = assigned[nasgn].pci_size_low = 0xc;
-		nreg++, nasgn++;
-		(void) pci_memlist_remove(io_avail, 0x3b0, 0xc);
-		pci_memlist_insert(io_used, 0x3b0, 0xc);
-		pci_bus_res[bus].io_size += 0xc;
-
-		/* VGA hard decode 0x3c0-0x3df */
-		regs[nreg].pci_phys_hi = assigned[nasgn].pci_phys_hi =
-		    (PCI_RELOCAT_B | PCI_ALIAS_B | PCI_ADDR_IO | devloc);
-		regs[nreg].pci_phys_low = assigned[nasgn].pci_phys_low = 0x3c0;
-		regs[nreg].pci_size_low = assigned[nasgn].pci_size_low = 0x20;
-		nreg++, nasgn++;
-		(void) pci_memlist_remove(io_avail, 0x3c0, 0x20);
-		pci_memlist_insert(io_used, 0x3c0, 0x20);
-		pci_bus_res[bus].io_size += 0x20;
-
-		/* Video memory */
-		regs[nreg].pci_phys_hi = assigned[nasgn].pci_phys_hi =
-		    (PCI_RELOCAT_B | PCI_ALIAS_B | PCI_ADDR_MEM32 | devloc);
-		regs[nreg].pci_phys_low =
-		    assigned[nasgn].pci_phys_low = 0xa0000;
-		regs[nreg].pci_size_low =
-		    assigned[nasgn].pci_size_low = 0x20000;
-		nreg++, nasgn++;
-		/* remove from MEM and PMEM space */
-		(void) pci_memlist_remove(mem_avail, 0xa0000, 0x20000);
-		(void) pci_memlist_remove(pmem_avail, 0xa0000, 0x20000);
-		pci_memlist_insert(mem_used, 0xa0000, 0x20000);
-		pci_bus_res[bus].mem_size += 0x20000;
+		dev_err(dip, CE_PANIC, "ARM PCI does not support legacy VGA");
 	}
 
 	/* add the hard-decode, aliased address spaces for 8514 */
 	if ((baseclass == PCI_CLASS_DISPLAY) &&
 	    (subclass == PCI_DISPLAY_VGA) &&
 	    (progclass & PCI_DISPLAY_IF_8514)) {
-
-		/* hard decode 0x2e8 */
-		regs[nreg].pci_phys_hi = assigned[nasgn].pci_phys_hi =
-		    (PCI_RELOCAT_B | PCI_ALIAS_B | PCI_ADDR_IO | devloc);
-		regs[nreg].pci_phys_low = assigned[nasgn].pci_phys_low = 0x2e8;
-		regs[nreg].pci_size_low = assigned[nasgn].pci_size_low = 0x1;
-		nreg++, nasgn++;
-		(void) pci_memlist_remove(io_avail, 0x2e8, 0x1);
-		pci_memlist_insert(io_used, 0x2e8, 0x1);
-		pci_bus_res[bus].io_size += 0x1;
-
-		/* hard decode 0x2ea-0x2ef */
-		regs[nreg].pci_phys_hi = assigned[nasgn].pci_phys_hi =
-		    (PCI_RELOCAT_B | PCI_ALIAS_B | PCI_ADDR_IO | devloc);
-		regs[nreg].pci_phys_low = assigned[nasgn].pci_phys_low = 0x2ea;
-		regs[nreg].pci_size_low = assigned[nasgn].pci_size_low = 0x6;
-		nreg++, nasgn++;
-		(void) pci_memlist_remove(io_avail, 0x2ea, 0x6);
-		pci_memlist_insert(io_used, 0x2ea, 0x6);
-		pci_bus_res[bus].io_size += 0x6;
+		dev_err(dip, CE_PANIC, "ARM PCI does not support legacy VGA");
 	}
 
 done:
@@ -2526,44 +2414,11 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip,
 	set_ppb_res(rcdip, dip, bus, dev, func, RES_PMEM, pmem.base,
 	    pmem.limit);
 
-	/*
-	 * Add VGA legacy resources to the bridge's pci_bus_res if it
-	 * has VGA_ENABLE set.  Note that we put them in 'avail',
-	 * because that's used to populate the ranges prop; they'll be
-	 * removed from there by the VGA device once it's found.  Also,
-	 * remove them from the parent's available list and note them as
-	 * used in the parent.
-	 */
-
 	if (pci_cfgacc_get16(rcdip, PCI_GETBDF(bus, dev, func),
 	    PCI_BCNF_BCNTRL) & PCI_BCNF_BCNTRL_VGA_ENABLE) {
-
-		pci_memlist_insert(&pci_bus_res[secbus].io_avail, 0x3b0, 0xc);
-
-		pci_memlist_insert(&pci_bus_res[bus].io_used, 0x3b0, 0xc);
-		if (pci_bus_res[bus].io_avail != NULL) {
-			(void) pci_memlist_remove(&pci_bus_res[bus].io_avail,
-			    0x3b0, 0xc);
-		}
-
-		pci_memlist_insert(&pci_bus_res[secbus].io_avail, 0x3c0, 0x20);
-
-		pci_memlist_insert(&pci_bus_res[bus].io_used, 0x3c0, 0x20);
-		if (pci_bus_res[bus].io_avail != NULL) {
-			(void) pci_memlist_remove(&pci_bus_res[bus].io_avail,
-			    0x3c0, 0x20);
-		}
-
-		pci_memlist_insert(&pci_bus_res[secbus].mem_avail, 0xa0000,
-		    0x20000);
-
-		pci_memlist_insert(&pci_bus_res[bus].mem_used, 0xa0000,
-		    0x20000);
-		if (pci_bus_res[bus].mem_avail != NULL) {
-			(void) pci_memlist_remove(&pci_bus_res[bus].mem_avail,
-			    0xa0000, 0x20000);
-		}
+		dev_err(dip, CE_PANIC, "ARM PCI does not support legacy VGA");
 	}
+
 	add_bus_range_prop(pci_bus_res, secbus);
 	add_ranges_prop(pci_bus_res, secbus, B_TRUE);
 
