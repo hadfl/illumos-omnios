@@ -1523,14 +1523,6 @@ populate_bus_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			entry = entry->ml_next;
 		}
 	}
-
-	/*
-	 * Create 'ranges' property here before any resources are
-	 * removed from the resource lists
-	 */
-	/* XXXPCI: This is very likely to recreate the ranges we just used to
-	 * initialize all this.  Silly. */
-	add_ranges_prop(pci_bus_res, bus, B_FALSE);
 }
 
 /*
