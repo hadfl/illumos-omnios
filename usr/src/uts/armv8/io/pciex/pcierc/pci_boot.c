@@ -171,7 +171,6 @@
 	if (bus_debug((bus))) dump_memlists_impl(pbr, (tag), (bus))
 #define	MSGHDR		"pci_boot: %s[%02x/%02x/%x]: "
 
-
 typedef enum {
 	CONFIG_INFO,
 	CONFIG_UPDATE,
@@ -182,6 +181,7 @@ typedef enum {
 
 #define	PPB_IO_ALIGNMENT	0x1000		/* 4K aligned */
 #define	PPB_MEM_ALIGNMENT	0x100000	/* 1M aligned */
+
 /* round down to nearest power of two */
 #define	P2LE(align)					\
 	{						\
@@ -303,7 +303,7 @@ pci_setup_tree(dev_info_t *dip)
 		pci_bus_res[i].sub_bus = i;
 	}
 
-	int busrng[] = {0, 0xff};
+	int busrng[] = { 0, pci_prd_max_bus() };
 	int *bus_prop;
 	uint_t bus_prop_sz;
 
