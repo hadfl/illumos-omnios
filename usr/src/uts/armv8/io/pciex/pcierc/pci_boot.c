@@ -1335,6 +1335,11 @@ pci_reprogram(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res)
 		 *	00000500 - 0009FFFF	RAM
 		 *	000A0000 - 000BFFFF	VGA RAM
 		 *	000C0000 - 000FFFFF	ROM area
+		 *
+		 * NB: This justification does not make sense on ARM, however
+		 * the PCI codebase contains assumptions that address 0, at
+		 * least, is invalid.  This is as good a place as any to make
+		 * it true.
 		 */
 		(void) pci_memlist_remove(&pci_bus_res[bus].mem_avail,
 		    0, 0x100000);
