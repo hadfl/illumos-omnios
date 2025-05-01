@@ -1429,28 +1429,26 @@ find_resource(dev_info_t *rcdip, pci_prd_rsrc_t rsrc)
 		return (NULL);
 	}
 
-	rangelen /= CELLS_1275_TO_BYTES(rangelen) /
-	    sizeof (pci_ranges_t);
+	rangelen = CELLS_1275_TO_BYTES(rangelen);
+	rangelen /= sizeof (pci_ranges_t);
 
-	struct memlist *mlp;
+	struct memlist *mlp = NULL;
 	int i;
 
 	for (i = 0; i < rangelen; i++) {
-		if ((rsrc == PCI_PRD_R_IO) && (ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_IO) {
+		if ((rsrc == PCI_PRD_R_IO) &&
+		    (ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_IO) {
 			break;
-		} else if ((rsrc == PCI_PRD_R_PREFETCH) && (((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM32) ||
-		    ((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM64)) &&
-		    ((ranges[i].child_high & PCI_PREFETCH_B) == 0)) {
-			break;
-		} else if ((rsrc == PCI_PRD_R_MMIO) && (((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM32) ||
+		} else if ((rsrc == PCI_PRD_R_PREFETCH) &&
+		    (((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM32) ||
 		    ((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM64)) &&
 		    ((ranges[i].child_high & PCI_PREFETCH_B) != 0)) {
 			break;
-		} else if ((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_CONFIG) {
-			continue;
-		} else {
-			dev_err(rcdip, CE_PANIC, "unknown PCI resources %x in "
-			    "range %d\n", ranges[i].child_high, i);
+		} else if ((rsrc == PCI_PRD_R_MMIO) &&
+		    (((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM32) ||
+		    ((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM64)) &&
+		    ((ranges[i].child_high & PCI_PREFETCH_B) == 0)) {
+			break;
 		}
 	}
 
@@ -1460,6 +1458,8 @@ find_resource(dev_info_t *rcdip, pci_prd_rsrc_t rsrc)
 	pci_memlist_insert(&mlp,
 	    ((uint64_t)ranges[i].child_mid << 32) | ranges[i].child_low,
 	    ((uint64_t)ranges[i].size_high << 32) | ranges[i].size_low);
+
+	ddi_prop_free(ranges);
 
 	return (mlp);
 }
