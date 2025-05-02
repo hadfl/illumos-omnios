@@ -145,23 +145,19 @@
  *				unallocated (available) IO and memory ranges.
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/sysmacros.h>
-#include <sys/sunndi.h>
-#include <sys/pci.h>
-#include <sys/pci_impl.h>
-#include <sys/pcie_impl.h>
-#include <sys/pci_props.h>
+#include <sys/ddi.h>
 #include <sys/memlist.h>
-#include <sys/bootconf.h>
-#include <sys/pci_cfgacc.h>
-#include <sys/pci_cfgspace.h>
-#include <sys/psw.h>
-#include "../../../../../common/pci/pci_strings.h"
-#include <sys/devcache.h>
-#include <sys/plat/pci_prd.h>
 #include <sys/obpdefs.h>
+#include <sys/sunddi.h>
+#include <sys/sunndi.h>
+#include <sys/sysmacros.h>
+
+#include <sys/pci.h>
+#include <sys/pci_cfgacc.h>
+#include <sys/pci_impl.h>
+#include <sys/pci_props.h>
+#include <sys/pcie_impl.h>
+#include <sys/plat/pci_prd.h>
 
 #define	dcmn_err	if (pci_boot_debug != 0) cmn_err
 #define	bus_debug(bus)	(pci_boot_debug != 0 && pci_debug_bus_start != -1 && \
