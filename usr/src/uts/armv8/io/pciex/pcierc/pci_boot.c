@@ -260,8 +260,8 @@ static void add_ppb_props(dev_info_t *, dev_info_t *, struct pci_bus_resource *,
 static void add_bus_range_prop(struct pci_bus_resource *, int);
 static void add_ranges_prop(struct pci_bus_resource *, int, boolean_t);
 static void add_bus_available_prop(struct pci_bus_resource *, int);
-static void alloc_res_array(struct pci_bus_resource **);
-static void pci_memlist_remove_list(struct memlist **,struct memlist *);
+static void alloc_res_array(struct pci_bus_resource **, size_t);
+static void pci_memlist_remove_list(struct memlist **, struct memlist *);
 static void populate_bus_res(dev_info_t *, struct pci_bus_resource *,
     uchar_t);
 static void pci_reprogram(dev_info_t *, struct pci_bus_resource *);
@@ -333,7 +333,7 @@ pci_enumerate(dev_info_t *dip)
 
 	pci_boot_maxbus = pci_prd_max_bus();
 
-	alloc_res_array(&pci_bus_res);
+	alloc_res_array(&pci_bus_res, pci_boot_maxbus);
 	pci_setup_tree(dip, pci_bus_res);
 	pci_reprogram(dip, pci_bus_res);
 }
@@ -880,7 +880,8 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 	 */
 	cap_ptr = get_pci_cap(rcdip, bus, dev, func, PCI_CAP_ID_PCI_E);
 	if (cap_ptr != -1) {
-		uint16_t reg = pci_cfgacc_get16(rcdip, PCI_GETBDF(bus, dev, func),
+		uint16_t reg = pci_cfgacc_get16(rcdip,
+		    PCI_GETBDF(bus, dev, func),
 		    (uint16_t)cap_ptr + PCIE_LINKCTL);
 		if ((reg & PCIE_LINKCTL_LINK_DISABLE) != 0) {
 			dcmn_err(CE_NOTE, MSGHDR "link is disabled",
@@ -959,8 +960,8 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 	 * Check if the parent bus could allocate a 64-bit sized PF
 	 * range and bump the minimum pmem.size to 512MB if so.
 	 */
-	if (lookup_parbus_res(pci_bus_res, parbus, 1ULL << 32, PPB_MEM_ALIGNMENT,
-	    RES_PMEM) > 0) {
+	if (lookup_parbus_res(pci_bus_res, parbus, 1ULL << 32,
+	    PPB_MEM_ALIGNMENT, RES_PMEM) > 0) {
 		pmem.size = MAX(pci_bus_res[secbus].pmem_size,
 		    buscount * PPB_MEM_ALIGNMENT * 512);
 	}
@@ -1008,8 +1009,8 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 		 * Add an arbitrary I/O resource to the subtractive PPB
 		 */
 		if (pci_bus_res[secbus].io_avail == NULL) {
-			addr = get_parbus_res(pci_bus_res, parbus, secbus, io.size,
-			    io.align, RES_IO);
+			addr = get_parbus_res(pci_bus_res, parbus, secbus,
+			    io.size, io.align, RES_IO);
 			if (addr != 0) {
 				add_ranges_prop(pci_bus_res, secbus, B_TRUE);
 				pci_bus_res[secbus].io_reprogram =
@@ -1101,8 +1102,8 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			pci_bus_res[secbus].io_reprogram = B_TRUE;
 		} else {
 			/* get new io ports from parent bus */
-			addr = get_parbus_res(pci_bus_res, parbus, secbus, io.size,
-			    io.align, RES_IO);
+			addr = get_parbus_res(pci_bus_res, parbus, secbus,
+			    io.size, io.align, RES_IO);
 			if (addr != 0) {
 				io.base = addr;
 				io.limit = addr + io.size - 1;
@@ -1178,8 +1179,8 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			pci_bus_res[secbus].mem_reprogram = B_TRUE;
 		} else {
 			/* get new mem resource from parent bus */
-			addr = get_parbus_res(pci_bus_res, parbus, secbus, mem.size,
-			    mem.align, RES_MEM);
+			addr = get_parbus_res(pci_bus_res, parbus, secbus,
+			    mem.size, mem.align, RES_MEM);
 			if (addr != 0) {
 				mem.base = addr;
 				mem.limit = addr + mem.size - 1;
@@ -1218,8 +1219,8 @@ fix_ppb_res(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			pci_bus_res[secbus].mem_reprogram = B_TRUE;
 		} else {
 			/* get new mem resource from parent bus */
-			addr = get_parbus_res(pci_bus_res, parbus, secbus, pmem.size,
-			    pmem.align, RES_PMEM);
+			addr = get_parbus_res(pci_bus_res, parbus, secbus,
+			    pmem.size, pmem.align, RES_PMEM);
 			if (addr != 0) {
 				pmem.base = addr;
 				pmem.limit = addr + pmem.size - 1;
@@ -1399,46 +1400,46 @@ find_resource(dev_info_t *rcdip, pci_prd_rsrc_t rsrc)
 		return (mlp);
 	}
 
-	pci_ranges_t *ranges;
-	uint_t rangelen;
+	pci_ranges_t *rngs;
+	uint_t rnglen;
 
 	if (ddi_prop_lookup_int_array(DDI_DEV_T_ANY, rcdip,
 	    DDI_PROP_DONTPASS,  OBP_RANGES,
-	    (int **)&ranges, &rangelen) != DDI_PROP_SUCCESS) {
+	    (int **)&rngs, &rnglen) != DDI_PROP_SUCCESS) {
 		dev_err(rcdip, CE_PANIC, "No ranges property");
 		return (NULL);
 	}
 
-	rangelen = CELLS_1275_TO_BYTES(rangelen);
-	rangelen /= sizeof (pci_ranges_t);
+	rnglen = CELLS_1275_TO_BYTES(rnglen);
+	rnglen /= sizeof (pci_ranges_t);
 
 	int i;
 
-	for (i = 0; i < rangelen; i++) {
+	for (i = 0; i < rnglen; i++) {
 		if ((rsrc == PCI_PRD_R_IO) &&
-		    (ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_IO) {
+		    (rngs[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_IO) {
 			break;
 		} else if ((rsrc == PCI_PRD_R_PREFETCH) &&
-		    (((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM32) ||
-		    ((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM64)) &&
-		    ((ranges[i].child_high & PCI_PREFETCH_B) != 0)) {
+		    (((rngs[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM32) ||
+		    ((rngs[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM64)) &&
+		    ((rngs[i].child_high & PCI_PREFETCH_B) != 0)) {
 			break;
 		} else if ((rsrc == PCI_PRD_R_MMIO) &&
-		    (((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM32) ||
-		    ((ranges[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM64)) &&
-		    ((ranges[i].child_high & PCI_PREFETCH_B) == 0)) {
+		    (((rngs[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM32) ||
+		    ((rngs[i].child_high & PCI_ADDR_MASK) == PCI_ADDR_MEM64)) &&
+		    ((rngs[i].child_high & PCI_PREFETCH_B) == 0)) {
 			break;
 		}
 	}
 
-	if (i == rangelen)
+	if (i == rnglen)
 		return (NULL);
 
 	pci_memlist_insert(&mlp,
-	    ((uint64_t)ranges[i].child_mid << 32) | ranges[i].child_low,
-	    ((uint64_t)ranges[i].size_high << 32) | ranges[i].size_low);
+	    ((uint64_t)rngs[i].child_mid << 32) | rngs[i].child_low,
+	    ((uint64_t)rngs[i].size_high << 32) | rngs[i].size_low);
 
-	ddi_prop_free(ranges);
+	ddi_prop_free(rngs);
 
 	return (mlp);
 }
@@ -1487,7 +1488,7 @@ enumerate_bus_devs(dev_info_t *rcdip, uchar_t bus,
 	uchar_t dev, func, nfunc, header;
 	struct pci_devfunc *devlist = NULL, *entry;
 
- 	if (bus_debug(bus)) {
+	if (bus_debug(bus)) {
 		if (config_op == CONFIG_NEW) {
 			dcmn_err(CE_NOTE, "configuring pci bus 0x%x", bus);
 		} else {
@@ -1512,7 +1513,7 @@ enumerate_bus_devs(dev_info_t *rcdip, uchar_t bus,
 		}
 		pci_bus_res[bus].privdata = NULL;
 		return;
- 	}
+	}
 
 	for (dev = 0; dev < max_dev_pci; dev++) {
 		nfunc = 1;
@@ -1676,8 +1677,8 @@ process_devfunc(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 	 */
 	ndi_devi_enter(pci_bus_res[bus].dip);
 	for (dev_info_t *firmdip = ddi_get_child(pci_bus_res[bus].dip);
-	     firmdip != NULL;
-	     firmdip = ddi_get_next_sibling(firmdip)) {
+	    firmdip != NULL;
+	    firmdip = ddi_get_next_sibling(firmdip)) {
 		pci_regspec_t *regs;
 		uint_t regsz;
 		uint16_t child_dev = 0;
@@ -1705,9 +1706,9 @@ process_devfunc(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 		    DEVI_SID_NODEID, &dip);
 		prop_ret = pci_prop_name_node(dip, &prop_data);
 		if (prop_ret != PCI_PROP_OK) {
-			cmn_err(CE_WARN, MSGHDR "failed to set node name: 0x%x; "
-			    "devinfo node not created", ddi_node_name(rcdip),
-			    bus, dev, func, prop_ret);
+			cmn_err(CE_WARN, MSGHDR "failed to set node "
+			    "name: 0x%x; devinfo node not created",
+			    ddi_node_name(rcdip), bus, dev, func, prop_ret);
 			(void) ndi_devi_free(dip);
 			return;
 		}
@@ -1791,7 +1792,7 @@ process_devfunc(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
  *   CONFIG_INFO	- first pass, gather what is there.
  *   CONFIG_UPDATE	- second pass, adjust/allocate regions.
  *   CONFIG_NEW		- third pass, allocate regions.
-* Returns:
+ * Returns:
  *	-1	Skip this BAR
  *	 0	Properties have been assigned
  *	 1	Properties have been assigned, reprogramming required
@@ -1910,10 +1911,11 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 				    "I/O REPROG 0x%x ~ 0x%x",
 				    ddi_node_name(rcdip), bus, dev, func,
 				    bar, base, len);
-				pci_cfgacc_put32(rcdip, PCI_GETBDF(bus, dev, func),
+				pci_cfgacc_put32(rcdip,
+				    PCI_GETBDF(bus, dev, func),
 				    offset, base | type);
-				nbase = pci_cfgacc_get32(rcdip, PCI_GETBDF(bus, dev, func),
-				    offset);
+				nbase = pci_cfgacc_get32(rcdip,
+				    PCI_GETBDF(bus, dev, func), offset);
 				nbase &= PCI_BASE_IO_ADDR_M;
 
 				if (base != nbase) {
@@ -1922,14 +1924,18 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 					    "FAILED READBACK 0x%x",
 					    ddi_node_name(rcdip), bus, dev,
 					    func, bar, base, len, nbase);
-					pci_cfgacc_put32(rcdip, PCI_GETBDF(bus, dev, func),
+					pci_cfgacc_put32(rcdip,
+					    PCI_GETBDF(bus, dev, func),
 					    offset, 0);
 					if (baseclass != PCI_CLASS_BRIDGE) {
 						/* Disable PCI_COMM_IO bit */
-						command = pci_cfgacc_get16(rcdip, PCI_GETBDF(bus, dev,
-						    func), PCI_CONF_COMM);
+						command =
+						    pci_cfgacc_get16(rcdip,
+						    PCI_GETBDF(bus, dev, func),
+						    PCI_CONF_COMM);
 						command &= ~PCI_COMM_IO;
-						pci_cfgacc_put16(rcdip, PCI_GETBDF(bus, dev, func),
+						pci_cfgacc_put16(rcdip,
+						    PCI_GETBDF(bus, dev, func),
 						    PCI_CONF_COMM, command);
 					}
 					pci_memlist_insert(io_avail, base, len);
@@ -1991,11 +1997,13 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 
 			if ((phys_hi & PCI_PREFETCH_B) != 0 &&
 			    *pmem_avail == NULL) {
-				res_bus = resolve_alloc_bus(pci_bus_res, bus, RES_PMEM);
+				res_bus = resolve_alloc_bus(pci_bus_res, bus,
+				    RES_PMEM);
 				pmem_avail = &pci_bus_res[res_bus].pmem_avail;
 				mem_avail = &pci_bus_res[res_bus].mem_avail;
 			} else if (*mem_avail == NULL) {
-				res_bus = resolve_alloc_bus(pci_bus_res, bus, RES_MEM);
+				res_bus = resolve_alloc_bus(pci_bus_res, bus,
+				    RES_MEM);
 				pmem_avail = &pci_bus_res[res_bus].pmem_avail;
 				mem_avail = &pci_bus_res[res_bus].mem_avail;
 			}
@@ -2014,7 +2022,8 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 		fbase = (((uint64_t)base_hi) << 32) | base;
 		if (op == CONFIG_INFO) {
 			dcmn_err(CE_NOTE,
-			    MSGHDR "BAR%u %sMEM FWINIT 0x%lx ~ 0x%lx%s (ignored)",
+			    MSGHDR "BAR%u %sMEM FWINIT 0x%lx ~ 0x%lx%s "
+			    "(ignored)",
 			    ddi_node_name(rcdip), bus, dev, func, bar,
 			    (phys_hi & PCI_PREFETCH_B) ? "P" : " ",
 			    fbase, len,
@@ -2066,7 +2075,8 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 			if (fbase == 0) {
 				cmn_err(CE_WARN, MSGHDR "BAR%u MEM "
 				    "failed to find length 0x%lx",
-				    ddi_node_name(rcdip), bus, dev, func, bar, len);
+				    ddi_node_name(rcdip), bus, dev, func,
+				    bar, len);
 			} else {
 				uint64_t nbase, nbase_hi = 0;
 
@@ -2076,15 +2086,18 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 				    pf ? "PMEM" : "MEM",
 				    *bar_sz == PCI_BAR_SZ_64 ? "64" : "",
 				    fbase, len);
-				pci_cfgacc_put32(rcdip, PCI_GETBDF(bus, dev, func),
+				pci_cfgacc_put32(rcdip,
+				    PCI_GETBDF(bus, dev, func),
 				    offset, base | type);
-				nbase = pci_cfgacc_get32(rcdip, PCI_GETBDF(bus, dev, func),
-				    offset);
+				nbase = pci_cfgacc_get32(rcdip,
+				    PCI_GETBDF(bus, dev, func), offset);
 
 				if (*bar_sz == PCI_BAR_SZ_64) {
-					pci_cfgacc_put32(rcdip, PCI_GETBDF(bus, dev, func),
+					pci_cfgacc_put32(rcdip,
+					    PCI_GETBDF(bus, dev, func),
 					    offset + 4, base_hi);
-					nbase_hi = pci_cfgacc_get32(rcdip, PCI_GETBDF(bus, dev, func),
+					nbase_hi = pci_cfgacc_get32(rcdip,
+					    PCI_GETBDF(bus, dev, func),
 					    offset + 4);
 				}
 
@@ -2094,26 +2107,31 @@ add_bar_reg_props(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res,
 					cmn_err(CE_NOTE, MSGHDR "BAR%u "
 					    "%s%s REPROG 0x%lx ~ 0x%lx "
 					    "FAILED READBACK 0x%lx",
-					    ddi_node_name(rcdip), bus, dev, func, bar,
-					    pf ? "PMEM" : "MEM",
+					    ddi_node_name(rcdip), bus, dev,
+					    func, bar, pf ? "PMEM" : "MEM",
 					    *bar_sz == PCI_BAR_SZ_64 ?
 					    "64" : "",
 					    fbase, len,
 					    nbase_hi << 32 | nbase);
 
-					pci_cfgacc_put32(rcdip, PCI_GETBDF(bus, dev, func),
+					pci_cfgacc_put32(rcdip,
+					    PCI_GETBDF(bus, dev, func),
 					    offset, 0);
 					if (*bar_sz == PCI_BAR_SZ_64) {
-						pci_cfgacc_put32(rcdip, PCI_GETBDF(bus, dev, func),
+						pci_cfgacc_put32(rcdip,
+						    PCI_GETBDF(bus, dev, func),
 						    offset + 4, 0);
 					}
 
 					if (baseclass != PCI_CLASS_BRIDGE) {
 						/* Disable PCI_COMM_MAE bit */
-						command = pci_cfgacc_get16(rcdip, PCI_GETBDF(bus, dev,
+						command =
+						    pci_cfgacc_get16(rcdip,
+						    PCI_GETBDF(bus, dev,
 						    func), PCI_CONF_COMM);
 						command &= ~PCI_COMM_MAE;
-						pci_cfgacc_put16(rcdip, PCI_GETBDF(bus, dev, func),
+						pci_cfgacc_put16(rcdip,
+						    PCI_GETBDF(bus, dev, func),
 						    PCI_CONF_COMM, command);
 					}
 
@@ -2207,8 +2225,8 @@ add_reg_props(dev_info_t *rcdip, dev_info_t *dip,
 	    bar++, offset += bar_sz) {
 		int ret;
 
-		ret = add_bar_reg_props(rcdip, pci_bus_res, op, bus, dev, func, bar,
-		    offset, &regs[nreg], &assigned[nasgn], &bar_sz);
+		ret = add_bar_reg_props(rcdip, pci_bus_res, op, bus, dev, func,
+		    bar, offset, &regs[nreg], &assigned[nasgn], &bar_sz);
 
 		if (bar_sz == PCI_BAR_SZ_64)
 			bar++;
@@ -2389,13 +2407,16 @@ add_ppb_props(dev_info_t *rcdip, dev_info_t *dip,
 	fetch_ppb_res(rcdip, bus, dev, func, RES_PMEM, &pmem.base, &pmem.limit);
 
 	if (pci_boot_debug != 0) {
-		dcmn_err(CE_NOTE, MSGHDR " I/O FWINIT 0x%lx ~ 0x%lx%s (ignored)",
+		dcmn_err(CE_NOTE, MSGHDR " I/O FWINIT 0x%lx ~ 0x%lx%s "
+		    "(ignored)",
 		    ddi_node_name(dip), bus, dev, func, io.base, io.limit,
 		    io.base > io.limit ? " (disabled)" : "");
-		dcmn_err(CE_NOTE, MSGHDR " MEM FWINIT 0x%lx ~ 0x%lx%s (ignored)",
+		dcmn_err(CE_NOTE, MSGHDR " MEM FWINIT 0x%lx ~ 0x%lx%s "
+		    "(ignored)",
 		    ddi_node_name(dip), bus, dev, func, mem.base, mem.limit,
 		    mem.base > mem.limit ? " (disabled)" : "");
-		dcmn_err(CE_NOTE, MSGHDR "PMEM FWINIT 0x%lx ~ 0x%lx%s (ignored)",
+		dcmn_err(CE_NOTE, MSGHDR "PMEM FWINIT 0x%lx ~ 0x%lx%s "
+		    "(ignored)",
 		    ddi_node_name(dip), bus, dev, func, pmem.base, pmem.limit,
 		    pmem.base > pmem.limit ? " (disabled)" : "");
 	}
@@ -2629,9 +2650,8 @@ add_bus_available_prop(struct pci_bus_resource *pci_bus_res, int bus)
 }
 
 static void
-alloc_res_array(struct pci_bus_resource **pci_bus_res)
+alloc_res_array(struct pci_bus_resource **pci_bus_res, size_t maxbus)
 {
-	*pci_bus_res = kmem_zalloc(
-		(pci_boot_maxbus + 1) * sizeof (struct pci_bus_resource),
-		    KM_SLEEP);
+	*pci_bus_res = kmem_zalloc((maxbus + 1) *
+	    sizeof (struct pci_bus_resource), KM_SLEEP);
 }
