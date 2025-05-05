@@ -30,6 +30,7 @@
 #include <sys/sysmacros.h>
 #include <sys/stdbool.h>
 #include <sys/promif.h>
+#include <sys/prom_plat.h>
 #include <sys/ddi_impldefs.h>
 #include <sys/ddi_implfuncs.h>
 #include <sys/ddi_subrdefs.h>
@@ -73,7 +74,7 @@ bcm2835_find_mbox(dev_info_t *dip, void *arg)
 {
 	pnode_t node = ddi_get_nodeid(dip);
 	if (node > 0) {
-		if (prom_is_compatible(node, "brcm,bcm2835-mbox")) {
+		if (prom_fdt_is_compatible(node, "brcm,bcm2835-mbox")) {
 			*(dev_info_t **)arg = dip;
 			return (DDI_WALK_TERMINATE);
 		}
@@ -100,14 +101,14 @@ bcm2835_mbox_init(void)
 	ASSERT(node > 0);
 
 	uint64_t mbox_base, mbox_size;
-	if (prom_get_reg_address(node, 0, &mbox_base) != 0) {
+	if (prom_fdt_get_reg_address(node, 0, &mbox_base) != 0) {
 		cmn_err(CE_PANIC,
-		    "prom_get_reg_address failed for mbox register");
+		    "prom_fdt_get_reg_address failed for mbox register");
 	}
 
-	if (prom_get_reg_size(node, 0, &mbox_size) != 0) {
+	if (prom_fdt_get_reg_size(node, 0, &mbox_size) != 0) {
 		cmn_err(CE_PANIC,
-		    "prom_get_reg_size failed for mbox register");
+		    "prom_fdt_get_reg_size failed for mbox register");
 	}
 
 	caddr_t addr = psm_map_phys(mbox_base, mbox_size, PROT_READ|PROT_WRITE);
