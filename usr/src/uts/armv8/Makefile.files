@@ -24,7 +24,8 @@
 # Copyright 2025 Michael van der Westhuizen
 #
 
-CORE_OBJS_FDT +=
+CORE_OBJS_FDT +=		\
+	prom_emul_fdt.o
 
 CORE_OBJS +=			\
 	aarch64_subr.o		\
@@ -78,10 +79,8 @@ CORE_OBJS +=			\
 	arch_timer.o		\
 	earlybsa.o		\
 	pci_cfgacc.o		\
-	cpuinfo.o		\
-	$(CORE_OBJS_FDT)
-
-CORE_OBJS +=	pci_cfgacc_armv8.o
+	pci_cfgacc_armv8.o	\
+	cpuinfo.o
 
 #
 # These get compiled twice:

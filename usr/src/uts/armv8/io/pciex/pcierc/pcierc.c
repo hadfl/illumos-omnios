@@ -227,11 +227,6 @@ pcierc_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 		return (DDI_SUCCESS);
 	}
 
-	if (ddi_prop_update_string(DDI_DEV_T_NONE, devi, OBP_DEVICETYPE,
-	    "pciex") != DDI_PROP_SUCCESS) {
-		dev_err(devi, CE_WARN, "'device_type' prop create failed");
-	}
-
 	/*
 	 * Update the parent-private range data
 	 * XXXPCI: This sucks, see the implementation for a description of why.

@@ -361,9 +361,8 @@ pci_prop_to_node_name(const pci_prop_data_t *prop, char *buf, size_t bufsz)
 
 			if (generic != NULL) {
 				strlcpy(buf, generic, bufsz);
+				return;
 			}
-
-			return;
 		}
 
 		const char *prefix = pci_prop_nodename_prefix(prop, flags);
