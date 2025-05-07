@@ -1121,11 +1121,20 @@ pcierc_bus_config(dev_info_t *pdip, uint_t flags, ddi_bus_config_op_t op,
 	 * we must only do it the one time, lest we duplicate every device on
 	 * the bus.
 	 *
-	 * XXXPCI: We could also make that code safe against changes to
-	 * existing devices, which dovetails in with merging FDT properties.
-	 * Maybe.
+	 * We do this even if the initial request is smaller, which is
+	 * unfortunate in that it means we take possibly unbounded time to
+	 * attach the root disk (or whatever) by enumerating the full bus,
+	 * rather than directly onlining the single requested device.
+	 *
+	 * It is necessary that we respond to BUS_CONFIG_ONE is that is the
+	 * path taken when mounting root via ndi_devi_config_one() under
+	 * resolve_pathname()
+	 *
+	 * XXXPCI: This would be unnecessary if PCI enumeration could target
+	 * specific devices, which would also be good.
 	 */
-	if (op == BUS_CONFIG_ALL && !pcip->pci_enumerated) {
+	if (((op == BUS_CONFIG_ALL) || (op == BUS_CONFIG_ONE) ||
+	    (op == BUS_CONFIG_DRIVER)) && !pcip->pci_enumerated) {
 		pcip->pci_enumerated = B_TRUE;
 
 		extern void pci_enumerate(dev_info_t *);
