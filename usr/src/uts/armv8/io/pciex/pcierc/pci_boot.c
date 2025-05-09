@@ -1281,12 +1281,14 @@ pci_reprogram(dev_info_t *rcdip, struct pci_bus_resource *pci_bus_res)
 		 * NB: This justification does not make sense on ARM, however
 		 * the PCI codebase contains assumptions that address 0, at
 		 * least, is invalid.  This is as good a place as any to make
-		 * it true.
+		 * it true.  We also remove I/O 0x0 for the same reason
 		 */
 		(void) pci_memlist_remove(&pci_bus_res[bus].mem_avail,
-		    0, 0x100000);
+		    0x0, 0x100000);
 		(void) pci_memlist_remove(&pci_bus_res[bus].pmem_avail,
-		    0, 0x100000);
+		    0x0, 0x100000);
+		(void) pci_memlist_remove(&pci_bus_res[bus].io_avail,
+		    0x0, 0x1);
 
 		/*
 		 * 3. Calculate the amount of "spare" 32-bit memory so that we
