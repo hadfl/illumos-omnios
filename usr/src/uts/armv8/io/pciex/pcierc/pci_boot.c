@@ -30,7 +30,7 @@
  * PCI bus enumeration and device programming are done in several passes. The
  * following is a high level overview of this process.
  *
- * pci_enumerate(reprogram=0)
+ * pci_enumerate()
  *				The main entry point to PCI bus enumeration is
  *				pci_enumerate(). This function is invoked
  *				twice, once to set up the PCI portion of the
@@ -88,7 +88,7 @@
  *				this stage, then it is flagged for subsequent
  *				reprogramming.
  *
- * pci_enumerate(reprogram=1)
+ * ...
  *				The second bus enumeration pass is to take care
  *				of any devices that were not set up by the
  *				system firmware. These devices were flagged
