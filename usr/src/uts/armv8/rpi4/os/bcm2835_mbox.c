@@ -225,3 +225,38 @@ bcm2835_mbox_prop_send(void *data, uint32_t len)
 
 	mutex_exit(&mbox_lock);
 }
+
+bool
+bcm2835_mbox_xhci_reset(uint32_t dev_addr)
+{
+	struct {
+		struct vcprop_buffer_hdr		vb_hdr;
+		struct vcprop_tag_notifyxhcireset	vbt_xhcires;
+		struct vcprop_tag			end;
+	} vb = {
+		.vb_hdr = {
+			.vpb_len = sizeof (vb),
+			.vpb_rcode = VCPROP_PROCESS_REQUEST,
+		},
+		.vbt_xhcires = {
+			.tag = {
+				.vpt_tag = VCPROPTAG_NOTIFY_XHCI_RESET,
+				.vpt_len = VCPROPTAG_LEN(vb.vbt_xhcires),
+				.vpt_rcode = VCPROPTAG_REQUEST,
+			},
+			.deviceaddress = dev_addr,
+		},
+		.end = {
+			.vpt_tag = VCPROPTAG_NULL
+		},
+	};
+
+	bcm2835_mbox_prop_send(&vb, sizeof (vb));
+
+	if (!vcprop_buffer_success_p(&vb.vb_hdr))
+		return (false);
+	if (!vcprop_tag_success_p(&vb.vbt_xhcires.tag))
+		return (false);
+
+	return (true);
+}

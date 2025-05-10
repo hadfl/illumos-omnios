@@ -208,6 +208,16 @@ extern "C" {
 #define	XHCI_ROUTE_MASK(x)	((x) & 0xfffff)
 
 /*
+ * XXXARM: not sure whether this is the right spot
+ */
+#if defined(__aarch64__)
+#define	BCM2711_VL805_FIRMWARE_REG	0x50
+#define	BCM2711_PCIE_BUS_SHIFT		20
+#define	BCM2711_PCIE_SLOT_SHIFT		15
+#define	BCM2711_PCIE_FUNC_SHIFT		12
+#endif
+
+/*
  * This is the default tick that we use for timeouts while endpoints have
  * outstanding, active, non-periodic transfers. We choose one second as the USBA
  * specifies timeouts in units of seconds. Note that this is in microseconds, so

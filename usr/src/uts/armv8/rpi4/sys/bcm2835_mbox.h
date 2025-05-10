@@ -30,6 +30,8 @@
 #ifndef _IO_BCM2835_MBOX_H
 #define _IO_BCM2835_MBOX_H
 
+#include <sys/stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -43,7 +45,10 @@ extern "C" {
 #define	BCM2835_MBOX_MSG(chan, data) \
     (BCM2835_MBOX_CHAN(chan) | BCM2835_MBOX_DATA(data))
 
+#pragma weak	bcm2835_mbox_xhci_reset
+
 void bcm2835_mbox_prop_send(void *data, uint32_t len);
+bool bcm2835_mbox_xhci_reset(uint32_t dev_addr);
 
 #ifdef __cplusplus
 }
