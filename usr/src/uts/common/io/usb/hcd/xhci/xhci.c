@@ -750,6 +750,10 @@
 #include <sys/class.h>
 #include <sys/policy.h>
 
+#if defined(__aarch64__)
+#include <sys/bcm2835_mbox.h>
+#endif
+
 #include <sys/usb/hcd/xhci/xhci.h>
 #include <sys/usb/hcd/xhci/xhci_ioctl.h>
 
@@ -1139,6 +1143,95 @@ xhci_reg_poll(xhci_t *xhcip, xhci_reg_type_t rt, int reg, uint32_t mask,
 		delay(drv_usectohz(delay_ms * 1000));
 	}
 	return (ETIMEDOUT);
+}
+
+static boolean_t
+xhci_firmware_load(xhci_t *xhcip)
+{
+#if !defined(__aarch64__)
+	return (B_TRUE);
+#endif
+	int rv;
+	uint8_t bus, dev, func;
+	uint32_t physhi, nelems;
+	int *regp;
+	char **strs;
+
+	xhci_log(xhcip, "vendor ID: 0x%x", xhcip->xhci_vendor_id);
+	xhci_log(xhcip, "device ID: 0x%x", xhcip->xhci_device_id);
+
+	if (xhcip->xhci_device_id != 0x3483 || xhcip->xhci_vendor_id != 0x1106)
+		return (B_TRUE);
+
+	/* only reprogram the fw on the Raspberry Pi 4 */
+	rv = ddi_prop_lookup_string_array(DDI_DEV_T_ANY, ddi_root_node(),
+	    DDI_PROP_DONTPASS, OBP_COMPATIBLE, &strs, &nelems);
+	if (rv != DDI_PROP_SUCCESS)
+		return (B_FALSE);
+
+	bool isrpi4 = false;
+	for (int i = 0; i < nelems; i++) {
+		if (strcmp(strs[i], "raspberrypi,4-model-b")) {
+			isrpi4 = true;
+
+			break;
+		}
+	}
+	ddi_prop_free(strs);
+
+	if (!isrpi4)
+		return (B_TRUE);
+
+	/*
+	 * and iff the device is at the well-known location 1:0:0
+	 * and therefore the VC is in charge
+	 */
+	rv = ddi_prop_lookup_int_array(DDI_DEV_T_ANY, xhcip->xhci_dip,
+	    DDI_PROP_DONTPASS, "reg", &regp, &nelems);
+	if (rv != DDI_PROP_SUCCESS || nelems == 0)
+		return (B_FALSE);
+
+	physhi = regp[0];
+	ddi_prop_free(regp);
+
+	func = (uint8_t)PCI_REG_FUNC_G(physhi);
+	dev = (uint8_t)PCI_REG_DEV_G(physhi);
+	bus = (uint8_t)PCI_REG_BUS_G(physhi);
+
+	if (bus != 1 && dev != 0 && func != 0)
+		return (B_TRUE);
+
+	uint32_t xhcirev = pci_config_get32(xhcip->xhci_cfg_handle,
+	    BCM2711_VL805_FIRMWARE_REG);
+
+	/* fw already loaded */
+	if (xhcirev != 0 && xhcirev != 0xffffffff) {
+		xhci_log(xhcip, "fw already loaded, rev: 0x%x", xhcirev);
+
+		return (B_TRUE);
+	}
+
+	if (!bcm2835_mbox_xhci_reset((bus << BCM2711_PCIE_BUS_SHIFT) |
+	    (dev << BCM2711_PCIE_SLOT_SHIFT) |
+	    (func << BCM2711_PCIE_FUNC_SHIFT))) {
+		goto out;
+	}
+
+	drv_usecwait(1000);
+
+	xhcirev = pci_config_get32(xhcip->xhci_cfg_handle,
+	    BCM2711_VL805_FIRMWARE_REG);
+
+	if (xhcirev != 0 && xhcirev != 0xffffffff) {
+		xhci_log(xhcip, "fw loaded, rev: 0x%x", xhcirev);
+
+		return (B_TRUE);
+	}
+
+out:
+	xhci_error(xhcip, "loading fw failed");
+
+	return (B_FALSE);
 }
 
 static boolean_t
@@ -2078,6 +2171,10 @@ xhci_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 	    PCI_CONF_VENID);
 	xhcip->xhci_device_id = pci_config_get16(xhcip->xhci_cfg_handle,
 	    PCI_CONF_DEVID);
+
+	if (xhci_firmware_load(xhcip) == B_FALSE) {
+		goto err;
+	}
 
 	if (xhci_regs_map(xhcip) == B_FALSE) {
 		goto err;

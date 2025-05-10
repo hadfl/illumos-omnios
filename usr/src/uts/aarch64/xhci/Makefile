@@ -25,6 +25,8 @@ include $(UTSBASE)/aarch64/Makefile.aarch64
 ALL_TARGET	= $(BINARY) $(CONFMOD)
 INSTALL_TARGET	= $(BINARY) $(ROOTMODULE) $(ROOT_CONFFILE)
 
+INC_PATH	+= -I$(UTSBASE)/armv8/rpi4
+
 LDFLAGS		+= -Nmisc/usba
 
 .KEEP_STATE:

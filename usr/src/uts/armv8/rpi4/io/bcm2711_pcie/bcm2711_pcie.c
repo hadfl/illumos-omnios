@@ -60,6 +60,11 @@
 #define	BCM2711_BRIDGE_DISABLE_FLAG	0x1
 #define	BCM2711_BRIDGE_RESET_FLAG	0x2
 #define	BCM2711_REG_PCIE_HARD_DEBUG	0x4204
+#define	BCM2711_REG_DMA_CONFIG		0x4008
+#define	BCM2711_REG_DMA_WINDOW_LOW	0x4034
+#define	BCM2711_REG_DMA_WINDOW_HIGH	0x4038
+#define	BCM2711_REG_DMA_WINDOW_1	0x403c
+#define	BCM2711_REG_BRIDGE_GISB_WINDOW	0x402c
 #define	BCM2711_REG_BRIDGE_STATE	0x4068
 #define	BCM2711_REG_BRIDGE_LINK_STATE	0x00bc
 
@@ -67,6 +72,28 @@
 #define	BCM2711_DEV_CFG_INDEX		0x9000 /* (write) config space index  */
 
 #define	BCM2711_MAX_BUS			1
+
+/*
+ * The system memory controller can address up to 16 GiB of physical memory
+ * (although at time of writing the largest memory size available for purchase
+ * is 8 GiB). However, the system DMA controller is capable of accessing only a
+ * limited portion of the address space. Worse, the PCI-e controller has further
+ * constraints for DMA, and those limitations are not wholly clear to the
+ * author. NetBSD and Linux allow DMA on the lower 3 GiB of the physical memory,
+ * but experimentation shows DMA performed above 960 MiB results in data
+ * corruption with this driver. The limit of 960 MiB is taken from OpenBSD, but
+ * apparently that value was chosen for satisfying a constraint of an unrelated
+ * peripheral.
+ *
+ * Whatever the true maximum address, 960 MiB works.
+ */
+#define BCM2711_DMA_HIGH_LIMIT			0x3c000000
+#define BCM2711_MAX_MEMORY_LOG2			0x21
+#define BCM2711_REG_VALUE_DMA_WINDOW_LOW	(BCM2711_MAX_MEMORY_LOG2 - 0xf)
+#define BCM2711_REG_VALUE_DMA_WINDOW_HIGH	0x0
+#define BCM2711_DMA_WINDOW_ENABLE		0x3000
+#define BCM2711_REG_VALUE_DMA_WINDOW_CONFIG	\
+    (((BCM2711_MAX_MEMORY_LOG2 - 0xf) << 0x1b) | BCM2711_DMA_WINDOW_ENABLE)
 
 typedef struct {
 	dev_info_t *bc_dip;
@@ -379,6 +406,21 @@ bcm2711_pcie_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 	    BCM2711_REG_CONTROLLER_HW_REV) & 0xffff;
 
 	dev_err(dip, CE_NOTE, "hardware revision: 0x%x.", hw_rev);
+
+
+	/*
+	 * Set PCI->CPU memory window. This encodes the inbound window showing
+	 * the system memory to the controller.
+	 */
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_DMA_WINDOW_LOW,
+	    BCM2711_REG_VALUE_DMA_WINDOW_LOW);
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_DMA_WINDOW_HIGH,
+	    BCM2711_REG_VALUE_DMA_WINDOW_HIGH);
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_DMA_CONFIG,
+		BCM2711_REG_VALUE_DMA_WINDOW_CONFIG);
+
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_BRIDGE_GISB_WINDOW, 0);
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_DMA_WINDOW_1, 0);
 
 	bcm2711_pcie_enable_controller(softc);
 
