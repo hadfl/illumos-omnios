@@ -55,18 +55,23 @@
 
 #include <pcierc.h>
 
-#define	BCM2711_REG_CONTROLLER_HW_REV	0x406c
-#define	BCM2711_REG_BRIDGE_CTRL		0x9210
-#define	BCM2711_BRIDGE_DISABLE_FLAG	0x1
-#define	BCM2711_BRIDGE_RESET_FLAG	0x2
-#define	BCM2711_REG_PCIE_HARD_DEBUG	0x4204
-#define	BCM2711_REG_DMA_CONFIG		0x4008
-#define	BCM2711_REG_DMA_WINDOW_LOW	0x4034
-#define	BCM2711_REG_DMA_WINDOW_HIGH	0x4038
-#define	BCM2711_REG_DMA_WINDOW_1	0x403c
-#define	BCM2711_REG_BRIDGE_GISB_WINDOW	0x402c
-#define	BCM2711_REG_BRIDGE_STATE	0x4068
-#define	BCM2711_REG_BRIDGE_LINK_STATE	0x00bc
+#define	BCM2711_REG_CONTROLLER_HW_REV		0x406c
+#define	BCM2711_REG_BRIDGE_CTRL			0x9210
+#define	BCM2711_BRIDGE_DISABLE_FLAG		0x1
+#define	BCM2711_BRIDGE_RESET_FLAG		0x2
+#define	BCM2711_REG_PCIE_HARD_DEBUG		0x4204
+#define	BCM2711_REG_BUS_WINDOW_LOW		0x400c
+#define	BCM2711_REG_BUS_WINDOW_HIGH		0x4010
+#define	BCM2711_REG_CPU_WINDOW_LOW		0x4070
+#define	BCM2711_REG_CPU_WINDOW_START_HIGH	0x4080
+#define	BCM2711_REG_CPU_WINDOW_END_HIGH		0x4084
+#define	BCM2711_REG_DMA_CONFIG			0x4008
+#define	BCM2711_REG_DMA_WINDOW_LOW		0x4034
+#define	BCM2711_REG_DMA_WINDOW_HIGH		0x4038
+#define	BCM2711_REG_DMA_WINDOW_1		0x403c
+#define	BCM2711_REG_BRIDGE_GISB_WINDOW		0x402c
+#define	BCM2711_REG_BRIDGE_STATE		0x4068
+#define	BCM2711_REG_BRIDGE_LINK_STATE		0x00bc
 
 #define	BCM2711_DEV_CFG_DATA		0x8000 /* (read/write) config space data */
 #define	BCM2711_DEV_CFG_INDEX		0x9000 /* (write) config space index  */
@@ -103,6 +108,9 @@ typedef struct {
 } bcm2711_pcie_softc_t;
 
 static void *bcm2711_pcie_soft_state;
+static volatile uint64_t bcm2711_pcie_pci_base = 0x7c000000;
+static volatile uint64_t bcm2711_pcie_cpu_base = 0xfc000000;
+static volatile uint64_t bcm2711_pcie_size = 0x03800000;
 
 static uint64_t
 bcm2711_cfg_read_root(bcm2711_pcie_softc_t *softc, int bus, int dev, int func,
@@ -363,6 +371,25 @@ bcm2711_pcie_enable_controller(const bcm2711_pcie_softc_t *softc)
 	drv_usecwait(100);
 }
 
+static uint32_t
+bcm2711_encode_cpu_window_low(uint64_t phys_base, uint64_t size)
+{
+	return (((phys_base >> 0x10) & 0xfff0) |
+	    ((phys_base + size - 1) & 0xfff00000));
+}
+
+static uint32_t
+bcm2711_encode_cpu_window_start_high(uint64_t phys_base)
+{
+	return ((phys_base >> 0x20) & 0xff);
+}
+
+static uint32_t
+bcm2711_encode_cpu_window_end_high(uint64_t phys_base, uint64_t size)
+{
+	return (((phys_base + size - 1) >> 0x20) & 0xff);
+}
+
 int
 bcm2711_pcie_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 {
@@ -406,7 +433,6 @@ bcm2711_pcie_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 	    BCM2711_REG_CONTROLLER_HW_REV) & 0xffff;
 
 	dev_err(dip, CE_NOTE, "hardware revision: 0x%x.", hw_rev);
-
 
 	/*
 	 * Set PCI->CPU memory window. This encodes the inbound window showing
@@ -456,6 +482,43 @@ bcm2711_pcie_attach(dev_info_t *dip, ddi_attach_cmd_t cmd)
 	/*
 	 * XXXPCI: do we need to set the CPU->PCI memory window?
 	 */
+	dev_err(dip, CE_NOTE, "bus window low: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_BUS_WINDOW_LOW));
+	dev_err(dip, CE_NOTE, "bus window high: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_BUS_WINDOW_HIGH));
+
+	dev_err(dip, CE_NOTE, "cpu window low: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_CPU_WINDOW_LOW));
+	dev_err(dip, CE_NOTE, "cpu window start high: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_CPU_WINDOW_START_HIGH));
+	dev_err(dip, CE_NOTE, "cpu window end high: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_CPU_WINDOW_END_HIGH));
+
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_BUS_WINDOW_LOW,
+	    bcm2711_pcie_pci_base & 0xffffffff);
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_BUS_WINDOW_HIGH,
+	    bcm2711_pcie_pci_base >> 32);
+
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_CPU_WINDOW_LOW,
+	    bcm2711_encode_cpu_window_low(bcm2711_pcie_cpu_base,
+	    bcm2711_pcie_size));
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_CPU_WINDOW_START_HIGH,
+	    bcm2711_encode_cpu_window_start_high(bcm2711_pcie_cpu_base));
+	bcm2711_pcie_write_reg(softc, BCM2711_REG_CPU_WINDOW_END_HIGH,
+	    bcm2711_encode_cpu_window_end_high(bcm2711_pcie_cpu_base,
+	    bcm2711_pcie_size));
+
+	dev_err(dip, CE_NOTE, "bus window low: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_BUS_WINDOW_LOW));
+	dev_err(dip, CE_NOTE, "bus window high: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_BUS_WINDOW_HIGH));
+
+	dev_err(dip, CE_NOTE, "cpu window low: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_CPU_WINDOW_LOW));
+	dev_err(dip, CE_NOTE, "cpu window start high: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_CPU_WINDOW_START_HIGH));
+	dev_err(dip, CE_NOTE, "cpu window end high: 0x%x.",
+	    bcm2711_pcie_read_reg(softc, BCM2711_REG_CPU_WINDOW_END_HIGH));
 
 	/*
 	 * XXXPCI: This is not the mechanism I would prefer, but I cannot find
