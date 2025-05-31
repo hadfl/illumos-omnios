@@ -24,20 +24,19 @@
 # Use is subject to license terms.
 #
 
-include	../../../Makefile.cmd
-include ../../../Makefile.cmd.64
+# This Makefile is only to produce 64-bit lex shared library libl.so.1
+# and not for building 64-bit lex itself.
+#
 include ../Makefile.com
 include ../../../../lib/Makefile.lib.64
 
 .KEEP_STATE:
 
-all: $(PROG)
-
 all_lib: $(LIBS)
 
-install: all $(ROOTPROG) $(ROOTFORMS) $(ROOTCCSBINLINK)
-
-install_lib:        all_lib $(ROOTLIBS) $(ROOTLINKS) $(DYNLINKLIB) $(ROOTCOMPATLINKS)
+install_lib:        all_lib $(ROOTLIBS) $(ROOTLINKS) $(ROOTCOMPATLINKS)
 
 include		../Makefile.targ
 include		../../../Makefile.targ
+
+all install:

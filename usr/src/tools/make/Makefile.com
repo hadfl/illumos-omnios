@@ -16,4 +16,4 @@ include $(SRC)/Makefile.native
 
 MAKE_INCLUDE= $(SRC)/cmd/make/include
 CFLAGS += $(CCVERBOSE)
-CPPFLAGS = -I$(MAKE_INCLUDE) $(MAKE_DEFS)
+CPPFLAGS = -I$(MAKE_INCLUDE) $(MAKE_DEFS) $(CPPFLAGS.native)

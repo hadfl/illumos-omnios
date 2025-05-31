@@ -45,6 +45,7 @@ include ../Makefile.tools
 PATLEN=		250
 STMTMAX=	10000
 YYLMAX=		10251
+CPPFLAGS =	$(CPPFLAGS.native)
 CFLAGS +=	-DPATLEN=$(PATLEN) -DSTMTMAX=$(STMTMAX) -DYYLMAX=$(YYLMAX)
 CERRWARN +=	-_gcc=-Wno-parentheses
 CERRWARN +=	-_gcc=-Wno-implicit-function-declaration

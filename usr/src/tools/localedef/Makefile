@@ -24,7 +24,7 @@ include		$(CMDDIR)/Makefile.common
 OBJS +=		avl.o \
 		mkdirp.o
 
-CPPFLAGS +=	-I$(CMDDIR) -I.
+CPPFLAGS +=	-I$(CMDDIR) -I. $(CPPFLAGS.native)
 
 .KEEP_STATE:
 
