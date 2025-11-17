@@ -22,6 +22,7 @@
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2012, Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2018, Joyent, Inc.
+ * Copyright 2025 Oxide Computer Company
  */
 
 /*
@@ -1375,9 +1376,6 @@ dld_capab_direct(dld_str_t *dsp, void *data, uint_t flags)
 
 	ASSERT(MAC_PERIM_HELD(dsp->ds_mh));
 
-	if (dsp->ds_sap == ETHERTYPE_IPV6)
-		return (ENOTSUP);
-
 	switch (flags) {
 	case DLD_ENABLE:
 		dls_rx_set(dsp, (dls_rx_t)direct->di_rx_cf,
@@ -1444,7 +1442,8 @@ dld_capab_poll_enable(dld_str_t *dsp, dld_capab_poll_t *poll)
 	 * (IP) to directly poll the soft ring (since DLS processing
 	 * hasn't been done) nor can we allow DLS bypass.
 	 */
-	if (!mac_rx_bypass_set(dsp->ds_mch, dsp->ds_rx, dsp->ds_rx_arg))
+	if (!mac_rx_bypass_set(dsp->ds_mch, dsp->ds_rx, dsp->ds_rx_arg,
+	    dsp->ds_sap == ETHERTYPE_IPV6))
 		return (ENOTSUP);
 
 	/*
@@ -1487,9 +1486,6 @@ dld_capab_poll(dld_str_t *dsp, void *data, uint_t flags)
 
 	ASSERT(MAC_PERIM_HELD(dsp->ds_mh));
 
-	if (dsp->ds_sap == ETHERTYPE_IPV6)
-		return (ENOTSUP);
-
 	switch (flags) {
 	case DLD_ENABLE:
 		return (dld_capab_poll_enable(dsp, poll));
@@ -1524,9 +1520,6 @@ dld_capab_lso(dld_str_t *dsp, void *data, uint_t flags)
 	dld_capab_lso_t		*lso = data;
 
 	ASSERT(MAC_PERIM_HELD(dsp->ds_mh));
-
-	if (dsp->ds_sap == ETHERTYPE_IPV6)
-		return (ENOTSUP);
 
 	switch (flags) {
 	case DLD_ENABLE: {
@@ -1591,18 +1584,10 @@ dld_capab(dld_str_t *dsp, uint_t type, void *data, uint_t flags)
 
 	switch (type) {
 	case DLD_CAPAB_DIRECT:
-		if (dsp->ds_sap == ETHERTYPE_IPV6) {
-			err = ENOTSUP;
-			break;
-		}
 		err = dld_capab_direct(dsp, data, flags);
 		break;
 
 	case DLD_CAPAB_POLL:
-		if (dsp->ds_sap == ETHERTYPE_IPV6) {
-			err = ENOTSUP;
-			break;
-		}
 		err =  dld_capab_poll(dsp, data, flags);
 		break;
 
