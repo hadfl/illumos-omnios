@@ -194,6 +194,7 @@ COMMON_SUBDIRS=		\
 	getopt		\
 	gettext		\
 	gettxt		\
+	gpioadm		\
 	grep		\
 	groups		\
 	growfs		\
@@ -205,6 +206,7 @@ COMMON_SUBDIRS=		\
 	hostname	\
 	hotplug		\
 	hotplugd	\
+	i2cadm		\
 	ibd_upgrade	\
 	iconv		\
 	id		\
