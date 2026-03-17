@@ -26,6 +26,7 @@
  */
 
 /*
+ * Copyright 2026 Edgecast Cloud LLC.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright 2017 Joyent, Inc.  All rights reserved.
@@ -1232,6 +1233,8 @@ nlm_host_destroy(struct nlm_host *hostp)
 	strfree(hostp->nh_name);
 	strfree(hostp->nh_netid);
 	kmem_free(hostp->nh_addr.buf, hostp->nh_addr.maxlen);
+	if (hostp->nh_laddr.buf != NULL)
+		kmem_free(hostp->nh_laddr.buf, hostp->nh_laddr.maxlen);
 
 	if (hostp->nh_sysid != LM_NOSYSID)
 		nlm_sysid_free(hostp->nh_sysid);
@@ -1404,7 +1407,11 @@ nlm_host_create(char *name, const char *netid,
 	host->nh_netid = strdup(netid);
 	host->nh_knc = *knc;
 	nlm_copy_netbuf(&host->nh_addr, naddr);
-	nlm_copy_netbuf(&host->nh_laddr, laddr);
+	if (laddr != NULL) {
+		nlm_copy_netbuf(&host->nh_laddr, laddr);
+	} else {
+		bzero(&host->nh_laddr, sizeof (host->nh_laddr));
+	}
 
 	host->nh_state = 0;
 	host->nh_rpcb_state = NRPCB_NEED_UPDATE;
