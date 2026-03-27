@@ -610,12 +610,33 @@ add_bhyve_extra_opts(int *argc, char **argv)
 static int
 add_virtio_opts(int *argc, char **argv)
 {
-	if (!get_zcfg_var("attr", "virtio1", NULL)) {
-		if (add_arg(argc, argv, "-o") != 0 ||
-		    add_arg(argc, argv, "virtio.modern=false") != 0) {
-			return (-1);
-		}
-	}
+	/*
+	 * We're mapping "virtio1" to BHYVE's virtio.modern, i.e. enabling
+	 * the transitional (0.9 and 1.0) devices in this bhyve instance.
+	 *
+	 * This dance is to insure old BHYVE VM objects with broken-driver
+	 * images do not fall over on a PI upgrade.
+	 *
+	 * Make sure the proptable.js file in smartos-live matches this
+	 * for a VM object "virtio1" property, including its absence. See
+	 * smartos-live for more.
+	 *
+	 * variable	BHYVE argument	variable-not-present	present
+	 * ========	==============  ====================	=======
+	 * virtio1	virtio.modern	false			use-value
+	 *
+	 * We will add the values of virtio.modern *explicitly* to the
+	 * command-line for observability.
+	 *
+	 * If we change variable-not-present to "true", the following
+	 * assignment will have to be rewritten.
+	 */
+	char *argstr = is_env_true("attr", "virtio1", NULL) ?
+	    "virtio.modern=true" : "virtio.modern=false";
+
+	/* Turn into bhyve arguments. */
+	if (add_arg(argc, argv, "-o") != 0 || add_arg(argc, argv, argstr) != 0)
+		return (-1);
 
 	return (0);
 }
