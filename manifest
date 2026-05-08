@@ -3430,6 +3430,7 @@ f usr/include/fm/topo_hc.h 0644 root bin
 f usr/include/fm/topo_list.h 0644 root bin
 f usr/include/fm/topo_method.h 0644 root bin
 f usr/include/fm/topo_mod.h 0644 root bin
+f usr/include/fm/topo_pcie.h 0644 root bin
 f usr/include/fmtmsg.h 0644 root bin
 f usr/include/fnmatch.h 0644 root bin
 f usr/include/form.h 0644 root bin
@@ -6099,6 +6100,7 @@ f usr/lib/fm/fmd/schemes/amd64/hc.so 0555 root bin
 f usr/lib/fm/fmd/schemes/amd64/legacy-hc.so 0555 root bin
 f usr/lib/fm/fmd/schemes/amd64/mem.so 0555 root bin
 f usr/lib/fm/fmd/schemes/amd64/mod.so 0555 root bin
+f usr/lib/fm/fmd/schemes/amd64/pcie.so 0555 root bin
 f usr/lib/fm/fmd/schemes/amd64/pkg.so 0555 root bin
 f usr/lib/fm/fmd/schemes/amd64/svc.so 0555 root bin
 f usr/lib/fm/fmd/schemes/amd64/sw.so 0555 root bin
@@ -6110,6 +6112,7 @@ f usr/lib/fm/fmd/schemes/hc.so 0555 root bin
 f usr/lib/fm/fmd/schemes/legacy-hc.so 0555 root bin
 f usr/lib/fm/fmd/schemes/mem.so 0555 root bin
 f usr/lib/fm/fmd/schemes/mod.so 0555 root bin
+f usr/lib/fm/fmd/schemes/pcie.so 0555 root bin
 f usr/lib/fm/fmd/schemes/pkg.so 0555 root bin
 f usr/lib/fm/fmd/schemes/svc.so 0555 root bin
 f usr/lib/fm/fmd/schemes/sw.so 0555 root bin
@@ -10940,6 +10943,7 @@ f usr/platform/i86pc/lib/fm/topo/maps/chip-hc-topology.xml 0444 root sys
 f usr/platform/i86pc/lib/fm/topo/maps/fan-hc-topology.xml 0444 root sys
 f usr/platform/i86pc/lib/fm/topo/maps/i86pc-hc-topology.xml 0444 root sys
 f usr/platform/i86pc/lib/fm/topo/maps/i86pc-legacy-hc-topology.xml 0444 root sys
+f usr/platform/i86pc/lib/fm/topo/maps/i86pc-pcie-topology.xml 0444 root sys
 f usr/platform/i86pc/lib/fm/topo/maps/psu-hc-topology.xml 0444 root sys
 d usr/platform/i86pc/lib/fm/topo/plugins 0755 root sys
 s usr/platform/i86pc/lib/fm/topo/plugins/64=amd64
@@ -10948,12 +10952,14 @@ f usr/platform/i86pc/lib/fm/topo/plugins/amd64/chip.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/amd64/chipset.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/amd64/hostbridge.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/amd64/pcibus.so 0555 root sys
+f usr/platform/i86pc/lib/fm/topo/plugins/amd64/pciebus.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/amd64/x86pi.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/amd64/zen.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/chip.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/chipset.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/hostbridge.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/pcibus.so 0555 root sys
+f usr/platform/i86pc/lib/fm/topo/plugins/pciebus.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/x86pi.so 0555 root sys
 f usr/platform/i86pc/lib/fm/topo/plugins/zen.so 0555 root sys
 d usr/platform/i86pc/lib/mdb 0755 root sys
@@ -18118,14 +18124,23 @@ s usr/share/man/man3scf/scf_value_set_ustring.3scf=scf_value_create.3scf
 s usr/share/man/man3scf/scf_value_type.3scf=scf_value_create.3scf
 s usr/share/man/man3scf/scf_values_destroy.3scf=scf_tmpl_prop_name.3scf
 s usr/share/man/man3scf/smf_degrade_instance.3scf=smf_enable_instance.3scf
+s usr/share/man/man3scf/smf_degrade_instance_by_instance.3scf=smf_enable_instance.3scf
 s usr/share/man/man3scf/smf_disable_instance.3scf=smf_enable_instance.3scf
+s usr/share/man/man3scf/smf_disable_instance_by_instance.3scf=smf_enable_instance.3scf
 s usr/share/man/man3scf/smf_disable_instance_with_comment.3scf=smf_enable_instance.3scf
 f usr/share/man/man3scf/smf_enable_instance.3scf 0444 root bin
+s usr/share/man/man3scf/smf_enable_instance_by_instance.3scf=smf_enable_instance.3scf
 s usr/share/man/man3scf/smf_get_state.3scf=smf_enable_instance.3scf
+s usr/share/man/man3scf/smf_get_state_by_instance.3scf=smf_enable_instance.3scf
 s usr/share/man/man3scf/smf_maintain_instance.3scf=smf_enable_instance.3scf
+s usr/share/man/man3scf/smf_maintain_instance_by_instance.3scf=smf_enable_instance.3scf
+s usr/share/man/man3scf/smf_refresh_all_instances.3scf=smf_enable_instance.3scf
 s usr/share/man/man3scf/smf_refresh_instance.3scf=smf_enable_instance.3scf
+s usr/share/man/man3scf/smf_refresh_instance_by_instance.3scf=smf_enable_instance.3scf
 s usr/share/man/man3scf/smf_restart_instance.3scf=smf_enable_instance.3scf
+s usr/share/man/man3scf/smf_restart_instance_by_instance.3scf=smf_enable_instance.3scf
 s usr/share/man/man3scf/smf_restore_instance.3scf=smf_enable_instance.3scf
+s usr/share/man/man3scf/smf_restore_instance_by_instance.3scf=smf_enable_instance.3scf
 d usr/share/man/man3sec 0755 root bin
 f usr/share/man/man3sec/acl_check.3sec 0444 root bin
 f usr/share/man/man3sec/acl_free.3sec 0444 root bin
