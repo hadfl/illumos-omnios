@@ -1395,6 +1395,7 @@ file path=opt/util-tests/tests/dladm/create-vnic mode=0555
 file path=opt/util-tests/tests/dladm/set-linkprop mode=0555
 file path=opt/util-tests/tests/dladm/show-class-confusion mode=0555
 file path=opt/util-tests/tests/dladm/show-overlay-exit mode=0555
+file path=opt/util-tests/tests/dladm/vnic-mtu mode=0555
 dir  path=opt/util-tests/tests/du
 file path=opt/util-tests/tests/du/du.kshlib mode=0555
 file path=opt/util-tests/tests/du/dutest mode=0555
@@ -1957,7 +1958,6 @@ file path=opt/util-tests/tests/sleep/sleeptest mode=0555
 file path=opt/util-tests/tests/smbios.32 mode=0555
 file path=opt/util-tests/tests/smbios.64 mode=0555
 file path=opt/util-tests/tests/svr4pkg_test mode=0555
-file path=opt/util-tests/tests/vnic-mtu mode=0555
 file path=opt/util-tests/tests/xargs_test mode=0555
 license lic_CDDL license=lic_CDDL
 license usr/src/lib/libdemangle/THIRDPARTYLICENSE \
