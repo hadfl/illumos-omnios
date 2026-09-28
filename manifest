@@ -12609,6 +12609,7 @@ f usr/share/man/man1/units.1 0444 root bin
 f usr/share/man/man1/unix2dos.1 0444 root bin
 s usr/share/man/man1/unpack.1=pack.1
 f usr/share/man/man1/uptime.1 0444 root bin
+f usr/share/man/man1/userattr.1 0444 root bin
 f usr/share/man/man1/uuidgen.1 0444 root bin
 f usr/share/man/man1/vacation.1 0444 root bin
 s usr/share/man/man1/valdate.1=ckdate.1
